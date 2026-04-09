@@ -1,10 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { io } from "socket.io-client";
 import QRCode from "react-qr-code";
 
-const SERVER_IP = "192.168.1.71";
-const FRONTEND_URL = `http://${SERVER_IP}:3000`;
-const BACKEND_URL = `http://${SERVER_IP}:5000`;
+const FRONTEND_URL = "https://mentimeter-frontend-pxpecxmee-youssefelnoby74-collabs-projects.vercel.app";
+const BACKEND_URL = "https://mentimeter-backend-h4zt.onrender.com";
 
 const socket = io(BACKEND_URL);
 
@@ -81,11 +80,11 @@ function App() {
       setMessage("Session created successfully");
     } catch (error) {
       console.error(error);
-      setMessage("Cannot connect to backend. Make sure server is running on port 5000.");
+      setMessage("Cannot connect to backend. Make sure server is running.");
     }
   };
 
-  const joinSession = () => {
+  const joinSession = useCallback(() => {
     if (!joinCode.trim()) {
       setMessage("Please enter a session code");
       return;
@@ -104,7 +103,7 @@ function App() {
       sessionId: joinCode.trim(),
       voterId
     });
-  };
+  }, [joinCode, voterId]);
 
   const submitVote = () => {
     if (hasVoted) {
@@ -178,7 +177,7 @@ function App() {
     if (page === "join" && codeFromUrl && joinCode === codeFromUrl && !joined) {
       joinSession();
     }
-  }, [page, joinCode, joined]);
+  }, [page, joinCode, joined, joinSession]);
 
   const countResults = () => {
     const counts = {};
