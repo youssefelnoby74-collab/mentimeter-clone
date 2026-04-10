@@ -38,6 +38,7 @@ function App() {
 
   const voterId = getVoterId();
   const frontendUrl = window.location.origin;
+  
   const qrLink = sessionId ? `${frontendUrl}?code=${sessionId}` : "";
 
   useEffect(() => {
