@@ -251,6 +251,8 @@ function App() {
     boxShadow: "0 10px 30px rgba(0,0,0,0.15)"
   };
 
+  const qrLink = `${FRONTEND_URL}?code=${sessionId}`;
+
   return (
     <div
       style={{
@@ -365,11 +367,18 @@ function App() {
                     borderRadius: "12px"
                   }}
                 >
-                  <QRCode value={`${FRONTEND_URL}?code=${sessionId}`} />
+                  <QRCode value={qrLink} />
                 </div>
 
-                <p style={{ marginTop: "12px", fontSize: "12px", color: "#666" }}>
-                  Link: {FRONTEND_URL}?code={sessionId}
+                <p
+                  style={{
+                    marginTop: "12px",
+                    fontSize: "12px",
+                    color: "#666",
+                    wordBreak: "break-all"
+                  }}
+                >
+                  Link: {qrLink}
                 </p>
               </div>
             )}
