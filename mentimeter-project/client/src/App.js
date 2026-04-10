@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { io } from "socket.io-client";
 import QRCode from "react-qr-code";
 
-const FRONTEND_URL = "https://mentimeter-frontend-pxpecxmee-youssefelnoby74-collabs-projects.vercel.app";
+const FRONTEND_URL = "https://mentimeter-frontend-new.vercel.app";
 const BACKEND_URL = "https://mentimeter-backend-h4zt.onrender.com";
 
 const socket = io(BACKEND_URL);
