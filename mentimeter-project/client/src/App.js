@@ -2,7 +2,6 @@ import { useEffect, useState, useCallback } from "react";
 import { io } from "socket.io-client";
 import QRCode from "react-qr-code";
 
-const FRONTEND_URL = "https://mentimeter-frontend-new.vercel.app";
 const BACKEND_URL = "https://mentimeter-backend-h4zt.onrender.com";
 
 const socket = io(BACKEND_URL);
@@ -38,6 +37,8 @@ function App() {
   const [isLoadingSession, setIsLoadingSession] = useState(false);
 
   const voterId = getVoterId();
+  const frontendUrl = window.location.origin;
+  const qrLink = sessionId ? `${frontendUrl}?code=${sessionId}` : "";
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -250,8 +251,6 @@ function App() {
     textAlign: "center",
     boxShadow: "0 10px 30px rgba(0,0,0,0.15)"
   };
-
-  const qrLink = `${FRONTEND_URL}?code=${sessionId}`;
 
   return (
     <div
