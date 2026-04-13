@@ -35,6 +35,7 @@ function App() {
   const [message, setMessage] = useState("");
   const [hasVoted, setHasVoted] = useState(false);
   const [isLoadingSession, setIsLoadingSession] = useState(false);
+  const [isCreatingSession, setIsCreatingSession] = useState(false);
 
   const [isHostPage, setIsHostPage] = useState(false);
   const [hostCode, setHostCode] = useState("");
@@ -67,8 +68,19 @@ function App() {
   }, []);
 
   const createSession = async () => {
+    if (!question.trim()) {
+      setMessage("Please enter a question");
+      return;
+    }
+
+    if (questionType === "multiple" && (!option1.trim() || !option2.trim())) {
+      setMessage("Please enter both options");
+      return;
+    }
+
     try {
-      setMessage("");
+      setIsCreatingSession(true);
+      setMessage("Creating session... please wait");
 
       const finalOptions =
         questionType === "truefalse" ? ["True", "False"] : [option1, option2];
@@ -89,15 +101,18 @@ function App() {
 
       if (!res.ok) {
         setMessage(data.error || "Failed to create session");
+        setIsCreatingSession(false);
         return;
       }
 
       setSessionId(data.sessionId);
       setResults([]);
       setMessage("Session created successfully");
+      setIsCreatingSession(false);
     } catch (error) {
       console.error(error);
-      setMessage("Cannot connect to backend. Make sure server is running.");
+      setMessage("Backend may be waking up on Render. Wait 30 seconds and try again.");
+      setIsCreatingSession(false);
     }
   };
 
@@ -249,10 +264,10 @@ function App() {
     const params = new URLSearchParams(window.location.search);
     const codeFromUrl = params.get("code");
 
-    if (!isHostPage && page === "join" && codeFromUrl && joinCode === codeFromUrl && !joined) {
+    if (page === "join" && codeFromUrl && joinCode === codeFromUrl && !joined) {
       joinSession();
     }
-  }, [page, joinCode, joined, joinSession, isHostPage]);
+  }, [page, joinCode, joined, joinSession]);
 
   const countResults = (optionsList, answersList) => {
     const counts = {};
@@ -506,8 +521,12 @@ function App() {
               </>
             )}
 
-            <button style={btn} onClick={createSession}>
-              Create Session
+            <button
+              style={isCreatingSession ? disabledBtn : btn}
+              onClick={createSession}
+              disabled={isCreatingSession}
+            >
+              {isCreatingSession ? "Creating..." : "Create Session"}
             </button>
 
             {sessionId && (
