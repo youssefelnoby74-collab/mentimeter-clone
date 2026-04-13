@@ -17,6 +17,7 @@ function getVoterId() {
 }
 
 function App() {
+  const appVersion = "VERSION 13 APR HOST TEST";
   const [page, setPage] = useState("home");
 
   const [questionType, setQuestionType] = useState("multiple");
@@ -434,8 +435,21 @@ function App() {
         alignItems: "center",
         padding: "20px"
       }}
-    >
-      <div style={card}>
+    ><div style={card}>
+  <div
+    style={{
+      marginBottom: "12px",
+      padding: "8px",
+      background: "#fff7cc",
+      border: "1px solid #f0d96c",
+      borderRadius: "8px",
+      fontSize: "12px",
+      fontWeight: "bold",
+      textAlign: "center"
+    }}
+  >
+    VERSION 13 APR HOST TEST
+  </div>
         {page === "home" && (
           <>
             <h1 style={{ marginBottom: "10px" }}>Mentimeter Clone</h1>
