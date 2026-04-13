@@ -222,10 +222,14 @@ function App() {
       }
     });
 
-    socket.on("vote_success", (msg) => {
-      setHasVoted(true);
-      setMessage(msg);
-    });
+   socket.on("vote_success", (msg) => {
+  setHasVoted(true);
+  setMessage(msg);
+
+  setTimeout(() => {
+    setMessage("Showing live results...");
+  }, 1500);
+});
 
     socket.on("vote_error", (msg) => {
       setMessage(msg);
@@ -678,7 +682,7 @@ function App() {
                           background: "#e9eef5",
                           borderRadius: "999px",
                           overflow: "hidden"
-                        }}
+                       }}
                       >
                         <div
                           style={{
