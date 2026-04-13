@@ -36,14 +36,29 @@ function App() {
   const [hasVoted, setHasVoted] = useState(false);
   const [isLoadingSession, setIsLoadingSession] = useState(false);
 
+  const [isHostPage, setIsHostPage] = useState(false);
+  const [hostCode, setHostCode] = useState("");
+  const [hostQuestion, setHostQuestion] = useState("");
+  const [hostOptions, setHostOptions] = useState([]);
+  const [hostResults, setHostResults] = useState([]);
+  const [hostLoading, setHostLoading] = useState(true);
+  const [hostError, setHostError] = useState("");
+
   const voterId = getVoterId();
   const frontendUrl = window.location.origin;
-  
   const qrLink = sessionId ? `${frontendUrl}?code=${sessionId}` : "";
+  const hostLink = sessionId ? `${frontendUrl}/host?code=${sessionId}` : "";
 
   useEffect(() => {
+    const path = window.location.pathname;
     const params = new URLSearchParams(window.location.search);
     const codeFromUrl = params.get("code");
+
+    if (path === "/host") {
+      setIsHostPage(true);
+      setHostCode(codeFromUrl || "");
+      return;
+    }
 
     if (codeFromUrl) {
       setPage("join");
@@ -125,24 +140,71 @@ function App() {
     });
   };
 
+  const loadHostSession = useCallback(async () => {
+    if (!hostCode.trim()) {
+      setHostError("No session code found in host link");
+      setHostLoading(false);
+      return;
+    }
+
+    try {
+      setHostLoading(true);
+      setHostError("");
+
+      const res = await fetch(`${BACKEND_URL}/session/${hostCode}`);
+      const data = await res.json();
+
+      if (!res.ok) {
+        setHostError(data.error || "Session not found");
+        setHostLoading(false);
+        return;
+      }
+
+      setHostQuestion(data.question);
+      setHostOptions(data.options || []);
+      setHostResults(data.answers || []);
+      setHostLoading(false);
+
+      socket.emit("join_session", {
+        sessionId: hostCode,
+        voterId: `host_${hostCode}`
+      });
+    } catch (error) {
+      console.error(error);
+      setHostError("Failed to load host session");
+      setHostLoading(false);
+    }
+  }, [hostCode]);
+
   useEffect(() => {
     socket.on("session_data", (data) => {
-      setJoined(true);
-      setIsLoadingSession(false);
-      setJoinedQuestion(data.question);
-      setJoinedOptions(data.options);
-      setResults(data.answers || []);
-      setHasVoted(data.alreadyVoted || false);
-
-      if (data.alreadyVoted) {
-        setMessage("You have already voted in this session");
+      if (isHostPage) {
+        setHostQuestion(data.question);
+        setHostOptions(data.options);
+        setHostResults(data.answers || []);
+        setHostLoading(false);
       } else {
-        setMessage("Joined session successfully");
+        setJoined(true);
+        setIsLoadingSession(false);
+        setJoinedQuestion(data.question);
+        setJoinedOptions(data.options);
+        setResults(data.answers || []);
+        setHasVoted(data.alreadyVoted || false);
+
+        if (data.alreadyVoted) {
+          setMessage("You have already voted in this session");
+        } else {
+          setMessage("Joined session successfully");
+        }
       }
     });
 
     socket.on("update_results", (data) => {
-      setResults(data);
+      if (isHostPage) {
+        setHostResults(data);
+      } else {
+        setResults(data);
+      }
     });
 
     socket.on("vote_success", (msg) => {
@@ -158,9 +220,14 @@ function App() {
     });
 
     socket.on("join_error", (msg) => {
-      setMessage(msg);
-      setJoined(false);
-      setIsLoadingSession(false);
+      if (isHostPage) {
+        setHostError(msg);
+        setHostLoading(false);
+      } else {
+        setMessage(msg);
+        setJoined(false);
+        setIsLoadingSession(false);
+      }
     });
 
     return () => {
@@ -170,32 +237,41 @@ function App() {
       socket.off("vote_error");
       socket.off("join_error");
     };
-  }, []);
+  }, [isHostPage]);
+
+  useEffect(() => {
+    if (isHostPage) {
+      loadHostSession();
+    }
+  }, [isHostPage, loadHostSession]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const codeFromUrl = params.get("code");
 
-    if (page === "join" && codeFromUrl && joinCode === codeFromUrl && !joined) {
+    if (!isHostPage && page === "join" && codeFromUrl && joinCode === codeFromUrl && !joined) {
       joinSession();
     }
-  }, [page, joinCode, joined, joinSession]);
+  }, [page, joinCode, joined, joinSession, isHostPage]);
 
-  const countResults = () => {
+  const countResults = (optionsList, answersList) => {
     const counts = {};
 
-    results.forEach((answer) => {
+    answersList.forEach((answer) => {
       counts[answer] = (counts[answer] || 0) + 1;
     });
 
-    const total = results.length || 1;
+    const total = answersList.length || 1;
 
-    return joinedOptions.map((option) => ({
+    return optionsList.map((option) => ({
       name: option,
       percent: Math.round(((counts[option] || 0) / total) * 100),
       count: counts[option] || 0
     }));
   };
+
+  const participantResults = countResults(joinedOptions, results);
+  const hostResultsData = countResults(hostOptions, hostResults);
 
   const btn = {
     width: "100%",
@@ -252,6 +328,98 @@ function App() {
     textAlign: "center",
     boxShadow: "0 10px 30px rgba(0,0,0,0.15)"
   };
+
+  if (isHostPage) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          background: "linear-gradient(135deg, #141e30, #243b55)",
+          color: "white",
+          padding: "40px"
+        }}
+      >
+        {hostLoading && (
+          <div style={{ textAlign: "center", marginTop: "120px", fontSize: "24px" }}>
+            Loading host screen...
+          </div>
+        )}
+
+        {hostError && (
+          <div style={{ textAlign: "center", marginTop: "120px", fontSize: "24px" }}>
+            {hostError}
+          </div>
+        )}
+
+        {!hostLoading && !hostError && (
+          <div style={{ maxWidth: "1000px", margin: "0 auto" }}>
+            <div style={{ textAlign: "center", marginBottom: "40px" }}>
+              <h1 style={{ fontSize: "52px", marginBottom: "10px" }}>Live Results</h1>
+              <p style={{ fontSize: "20px", opacity: 0.9 }}>Session Code: {hostCode}</p>
+            </div>
+
+            <div
+              style={{
+                background: "rgba(255,255,255,0.08)",
+                borderRadius: "20px",
+                padding: "30px",
+                marginBottom: "30px"
+              }}
+            >
+              <h2 style={{ fontSize: "38px", marginTop: 0 }}>{hostQuestion}</h2>
+            </div>
+
+            <div
+              style={{
+                background: "rgba(255,255,255,0.08)",
+                borderRadius: "20px",
+                padding: "30px"
+              }}
+            >
+              {hostResultsData.map((item, index) => (
+                <div key={index} style={{ marginBottom: "24px" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      marginBottom: "10px",
+                      fontSize: "24px",
+                      fontWeight: "bold"
+                    }}
+                  >
+                    <span>{item.name}</span>
+                    <span>
+                      {item.percent}% ({item.count} votes)
+                    </span>
+                  </div>
+
+                  <div
+                    style={{
+                      width: "100%",
+                      height: "36px",
+                      background: "rgba(255,255,255,0.15)",
+                      borderRadius: "999px",
+                      overflow: "hidden"
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: `${item.percent}%`,
+                        height: "100%",
+                        background: "linear-gradient(90deg, #00f2fe, #4facfe)",
+                        borderRadius: "999px",
+                        transition: "width 0.4s ease"
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div
@@ -380,6 +548,21 @@ function App() {
                 >
                   Link: {qrLink}
                 </p>
+
+                <a
+                  href={hostLink}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    display: "block",
+                    marginTop: "14px",
+                    color: "#2563eb",
+                    fontWeight: "bold",
+                    textDecoration: "none"
+                  }}
+                >
+                  Open Host Screen
+                </a>
               </div>
             )}
           </>
@@ -464,7 +647,7 @@ function App() {
                 <div style={{ marginTop: "20px", textAlign: "left" }}>
                   <h3>Live Results</h3>
 
-                  {countResults().map((item, index) => (
+                  {participantResults.map((item, index) => (
                     <div key={index} style={{ marginBottom: "14px" }}>
                       <div style={{ marginBottom: "6px" }}>
                         {item.name} — {item.percent}% ({item.count} votes)
