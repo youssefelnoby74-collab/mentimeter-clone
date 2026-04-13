@@ -31,11 +31,9 @@ function App() {
   const [selectedOption, setSelectedOption] = useState("");
   const [results, setResults] = useState([]);
   const [message, setMessage] = useState("");
-  const [hasVoted, setHasVoted] = useState(false);
   const [showOnlyResults, setShowOnlyResults] = useState(false);
 
   const [isHostPage, setIsHostPage] = useState(false);
-  const [hostCode, setHostCode] = useState("");
   const [hostQuestion, setHostQuestion] = useState("");
   const [hostOptions, setHostOptions] = useState([]);
   const [hostResults, setHostResults] = useState([]);
@@ -53,7 +51,10 @@ function App() {
 
     if (path === "/host") {
       setIsHostPage(true);
-      setHostCode(code || "");
+
+      if (code) {
+        loadHostSession(code);
+      }
     } else if (code) {
       setPage("join");
       setJoinCode(code);
@@ -61,17 +62,19 @@ function App() {
   }, []);
 
   const createSession = async () => {
-    if (!question || !option1 || !option2) {
-      setMessage("Fill all fields");
+    if (!question.trim() || !option1.trim() || !option2.trim()) {
+      setMessage("Please fill all fields");
       return;
     }
 
     try {
-      setMessage("Creating...");
+      setMessage("Creating session...");
 
       const res = await fetch(`${BACKEND_URL}/create-session`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json"
+        },
         body: JSON.stringify({
           question,
           options: [option1, option2]
@@ -80,73 +83,139 @@ function App() {
 
       const data = await res.json();
 
+      if (!res.ok) {
+        setMessage(data.error || "Failed to create session");
+        return;
+      }
+
       setSessionId(data.sessionId);
-      setMessage("Session created");
-    } catch {
-      setMessage("Server waking up, try again");
+      setMessage("Session created successfully");
+    } catch (error) {
+      console.error(error);
+      setMessage("Server is waking up. Please try again.");
     }
   };
 
   const joinSession = useCallback(() => {
+    if (!joinCode.trim()) {
+      setMessage("Please enter session code");
+      return;
+    }
+
     setShowOnlyResults(false);
-    setHasVoted(false);
+    setJoined(false);
+    setSelectedOption("");
+    setResults([]);
 
     socket.emit("join_session", {
-      sessionId: joinCode,
+      sessionId: joinCode.trim(),
       voterId
     });
   }, [joinCode, voterId]);
 
   const submitVote = () => {
+    if (!selectedOption) {
+      setMessage("Please select an answer");
+      return;
+    }
+
     socket.emit("submit_answer", {
-      sessionId: joinCode,
+      sessionId: joinCode.trim(),
       answer: selectedOption,
       voterId
     });
+  };
+
+  const loadHostSession = async (code) => {
+    try {
+      const res = await fetch(`${BACKEND_URL}/session/${code}`);
+      const data = await res.json();
+
+      if (!res.ok) {
+        setMessage(data.error || "Host session not found");
+        return;
+      }
+
+      setHostQuestion(data.question);
+      setHostOptions(data.options || []);
+      setHostResults(data.answers || []);
+
+      socket.emit("join_session", {
+        sessionId: code,
+        voterId: `host_${code}`
+      });
+    } catch (error) {
+      console.error(error);
+      setMessage("Failed to load host session");
+    }
   };
 
   useEffect(() => {
     socket.on("session_data", (data) => {
       if (isHostPage) {
         setHostQuestion(data.question);
-        setHostOptions(data.options);
-        setHostResults(data.answers);
+        setHostOptions(data.options || []);
+        setHostResults(data.answers || []);
       } else {
         setJoined(true);
         setJoinedQuestion(data.question);
-        setJoinedOptions(data.options);
-        setResults(data.answers);
+        setJoinedOptions(data.options || []);
+        setResults(data.answers || []);
       }
     });
 
     socket.on("update_results", (data) => {
-      if (isHostPage) setHostResults(data);
-      else setResults(data);
+      if (isHostPage) {
+        setHostResults(data);
+      } else {
+        setResults(data);
+      }
     });
 
     socket.on("vote_success", () => {
-      setHasVoted(true);
+      setMessage("Vote submitted successfully");
+
       setTimeout(() => {
         setShowOnlyResults(true);
       }, 800);
+    });
+
+    socket.on("vote_error", (msg) => {
+      setMessage(msg);
+    });
+
+    socket.on("join_error", (msg) => {
+      setMessage(msg);
     });
 
     return () => {
       socket.off("session_data");
       socket.off("update_results");
       socket.off("vote_success");
+      socket.off("vote_error");
+      socket.off("join_error");
     };
   }, [isHostPage]);
 
-  const countResults = (opts, answers) => {
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
+
+    if (!isHostPage && page === "join" && code && joinCode === code && !joined) {
+      joinSession();
+    }
+  }, [page, joinCode, joined, joinSession, isHostPage]);
+
+  const countResults = (optionsList, answersList) => {
     const counts = {};
-    answers.forEach((a) => {
-      counts[a] = (counts[a] || 0) + 1;
+
+    answersList.forEach((answer) => {
+      counts[answer] = (counts[answer] || 0) + 1;
     });
 
-    return opts.map((o) => ({
-      name: o,
-      percent: Math.round(((counts[o] || 0) / (answers.length || 1)) * 100)
+    return optionsList.map((option) => ({
+      name: option,
+      percent: Math.round(((counts[option] || 0) / (answersList.length || 1)) * 100)
     }));
   };
 
@@ -159,9 +228,9 @@ function App() {
         <h1>Live Results</h1>
         <h2>{hostQuestion}</h2>
 
-        {hostResultsData.map((r, i) => (
-          <div key={i}>
-            {r.name} - {r.percent}%
+        {hostResultsData.map((item, index) => (
+          <div key={index}>
+            {item.name} - {item.percent}%
           </div>
         ))}
       </div>
@@ -179,17 +248,33 @@ function App() {
 
       {page === "create" && (
         <>
-          <input placeholder="Question" onChange={(e) => setQuestion(e.target.value)} />
-          <input placeholder="Option 1" onChange={(e) => setOption1(e.target.value)} />
-          <input placeholder="Option 2" onChange={(e) => setOption2(e.target.value)} />
+          <input
+            placeholder="Question"
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+          />
+          <input
+            placeholder="Option 1"
+            value={option1}
+            onChange={(e) => setOption1(e.target.value)}
+          />
+          <input
+            placeholder="Option 2"
+            value={option2}
+            onChange={(e) => setOption2(e.target.value)}
+          />
 
           <button onClick={createSession}>Create</button>
 
           {sessionId && (
             <>
-              <p>{sessionId}</p>
+              <p>Code: {sessionId}</p>
               <QRCode value={qrLink} />
-              <a href={hostLink} target="_blank">Host Screen</a>
+              <div style={{ marginTop: 12 }}>
+                <a href={hostLink} target="_blank" rel="noreferrer">
+                  Host Screen
+                </a>
+              </div>
             </>
           )}
         </>
@@ -197,7 +282,11 @@ function App() {
 
       {page === "join" && (
         <>
-          <input onChange={(e) => setJoinCode(e.target.value)} />
+          <input
+            placeholder="Enter code"
+            value={joinCode}
+            onChange={(e) => setJoinCode(e.target.value)}
+          />
           <button onClick={joinSession}>Join</button>
 
           {joined && (
@@ -206,9 +295,9 @@ function App() {
                 <>
                   <h3>{joinedQuestion}</h3>
 
-                  {joinedOptions.map((o, i) => (
-                    <button key={i} onClick={() => setSelectedOption(o)}>
-                      {o}
+                  {joinedOptions.map((option, index) => (
+                    <button key={index} onClick={() => setSelectedOption(option)}>
+                      {option}
                     </button>
                   ))}
 
@@ -219,9 +308,9 @@ function App() {
               {showOnlyResults && <p>Thanks! Showing results...</p>}
 
               <h3>Results</h3>
-              {participantResults.map((r, i) => (
-                <div key={i}>
-                  {r.name} - {r.percent}%
+              {participantResults.map((item, index) => (
+                <div key={index}>
+                  {item.name} - {item.percent}%
                 </div>
               ))}
             </>
