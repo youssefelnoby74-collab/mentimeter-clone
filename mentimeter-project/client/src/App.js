@@ -5,6 +5,20 @@ import QRCode from "react-qr-code";
 const BACKEND_URL = "https://mentimeter-backend-h4zt.onrender.com";
 const socket = io(BACKEND_URL);
 
+const theme = {
+  primary: "#4f46e5",
+  secondary: "#06b6d4",
+  background: "linear-gradient(135deg, #4f46e5, #06b6d4)",
+  card: "#ffffff",
+  text: "#111827",
+  muted: "#6b7280",
+  border: "#e5e7eb",
+  light: "#f8fafc",
+  successBg: "#eefaf4",
+  successBorder: "#bbf7d0",
+  successText: "#166534"
+};
+
 function getVoterId() {
   let voterId = localStorage.getItem("voterId");
 
@@ -292,53 +306,56 @@ function App() {
   const participantResults = countResults(joinedOptions, results);
   const hostResultsData = countResults(hostOptions, hostResults);
 
+  const card = {
+    background: theme.card,
+    padding: "32px",
+    borderRadius: "24px",
+    width: "440px",
+    maxWidth: "100%",
+    textAlign: "center",
+    boxShadow: "0 20px 50px rgba(0,0,0,0.18)"
+  };
+
   const btn = {
     width: "100%",
-    padding: "12px",
-    margin: "6px 0",
+    padding: "14px",
+    margin: "8px 0",
     border: "none",
-    borderRadius: "10px",
-    background: "#4facfe",
+    borderRadius: "14px",
+    background: theme.primary,
     color: "white",
     fontSize: "16px",
+    fontWeight: "bold",
     cursor: "pointer"
   };
 
   const secondaryBtn = {
     width: "100%",
-    padding: "12px",
-    margin: "6px 0",
-    border: "1px solid #d0d7de",
-    borderRadius: "10px",
+    padding: "14px",
+    margin: "8px 0",
+    border: `1px solid ${theme.border}`,
+    borderRadius: "14px",
     background: "#ffffff",
-    color: "#222",
+    color: theme.text,
     fontSize: "16px",
     cursor: "pointer"
   };
 
   const selectedBtn = {
     ...secondaryBtn,
-    background: "#dff1ff",
-    border: "2px solid #4facfe",
+    background: "#eef2ff",
+    border: `2px solid ${theme.primary}`,
     fontWeight: "bold"
   };
 
   const input = {
     width: "100%",
-    padding: "10px",
-    borderRadius: "8px",
-    border: "1px solid #ccc",
-    fontSize: "14px",
-    boxSizing: "border-box"
-  };
-
-  const card = {
-    background: "white",
-    padding: "30px",
-    borderRadius: "18px",
-    width: "420px",
-    textAlign: "center",
-    boxShadow: "0 10px 30px rgba(0,0,0,0.15)"
+    padding: "12px",
+    borderRadius: "12px",
+    border: `1px solid ${theme.border}`,
+    fontSize: "15px",
+    boxSizing: "border-box",
+    outline: "none"
   };
 
   if (isHostPage) {
@@ -346,7 +363,7 @@ function App() {
       <div
         style={{
           minHeight: "100vh",
-          background: "linear-gradient(135deg, #141e30, #243b55)",
+          background: "linear-gradient(135deg, #111827, #1e3a8a)",
           color: "white",
           padding: "40px"
         }}
@@ -373,7 +390,7 @@ function App() {
             <div
               style={{
                 background: "rgba(255,255,255,0.08)",
-                borderRadius: "20px",
+                borderRadius: "24px",
                 padding: "30px",
                 marginBottom: "30px"
               }}
@@ -384,7 +401,7 @@ function App() {
             <div
               style={{
                 background: "rgba(255,255,255,0.08)",
-                borderRadius: "20px",
+                borderRadius: "24px",
                 padding: "30px"
               }}
             >
@@ -418,7 +435,7 @@ function App() {
                       style={{
                         width: `${item.percent}%`,
                         height: "100%",
-                        background: "linear-gradient(90deg, #00f2fe, #4facfe)",
+                        background: `linear-gradient(90deg, ${theme.primary}, ${theme.secondary})`,
                         borderRadius: "999px",
                         transition: "width 0.4s ease"
                       }}
@@ -437,7 +454,7 @@ function App() {
     <div
       style={{
         minHeight: "100vh",
-        background: "linear-gradient(135deg, #4facfe, #00f2fe)",
+        background: theme.background,
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
@@ -447,16 +464,18 @@ function App() {
       <div style={card}>
         {page === "home" && (
           <>
-            <h1 style={{ marginBottom: "10px" }}>Mentimeter Clone</h1>
-            <p style={{ color: "#666", marginBottom: "24px" }}>
-              Interactive live polling for education
+            <h1 style={{ marginBottom: "10px", color: theme.text, fontSize: "42px" }}>
+              Join the conversation
+            </h1>
+            <p style={{ color: theme.muted, marginBottom: "28px", fontSize: "16px" }}>
+              Create live polls and see the results instantly
             </p>
 
             <button style={btn} onClick={() => setPage("create")}>
               Create Poll
             </button>
 
-            <button style={btn} onClick={() => setPage("join")}>
+            <button style={secondaryBtn} onClick={() => setPage("join")}>
               Join Poll
             </button>
           </>
@@ -464,7 +483,7 @@ function App() {
 
         {page === "create" && (
           <>
-            <h2>Create Poll</h2>
+            <h2 style={{ color: theme.text, marginBottom: "20px" }}>Create Poll</h2>
 
             <button style={secondaryBtn} onClick={() => setPage("home")}>
               ← Back
@@ -530,14 +549,14 @@ function App() {
               <div
                 style={{
                   marginTop: "20px",
-                  padding: "16px",
-                  background: "#f5fbff",
-                  borderRadius: "12px",
-                  border: "1px solid #dbefff"
+                  padding: "18px",
+                  background: theme.light,
+                  borderRadius: "16px",
+                  border: `1px solid ${theme.border}`
                 }}
               >
-                <h3 style={{ margin: 0 }}>Session Code: {sessionId}</h3>
-                <p style={{ marginTop: "8px", color: "#666" }}>
+                <h3 style={{ margin: 0, color: theme.text }}>Session Code: {sessionId}</h3>
+                <p style={{ marginTop: "8px", color: theme.muted }}>
                   Scan this QR to open and join from phone
                 </p>
 
@@ -547,8 +566,8 @@ function App() {
                     display: "flex",
                     justifyContent: "center",
                     background: "white",
-                    padding: "10px",
-                    borderRadius: "12px"
+                    padding: "14px",
+                    borderRadius: "16px"
                   }}
                 >
                   <QRCode value={qrLink} />
@@ -558,7 +577,7 @@ function App() {
                   style={{
                     marginTop: "12px",
                     fontSize: "12px",
-                    color: "#666",
+                    color: theme.muted,
                     wordBreak: "break-all"
                   }}
                 >
@@ -572,7 +591,7 @@ function App() {
                   style={{
                     display: "block",
                     marginTop: "14px",
-                    color: "#2563eb",
+                    color: theme.primary,
                     fontWeight: "bold",
                     textDecoration: "none"
                   }}
@@ -586,7 +605,7 @@ function App() {
 
         {page === "join" && (
           <>
-            <h2>Join Poll</h2>
+            <h2 style={{ color: theme.text, marginBottom: "20px" }}>Join Poll</h2>
 
             <button style={secondaryBtn} onClick={() => setPage("home")}>
               ← Back
@@ -609,7 +628,7 @@ function App() {
             </button>
 
             {isLoadingSession && (
-              <p style={{ marginTop: "16px", color: "#666" }}>
+              <p style={{ marginTop: "16px", color: theme.muted }}>
                 Loading session...
               </p>
             )}
@@ -620,16 +639,18 @@ function App() {
                   <div
                     style={{
                       marginTop: "20px",
-                      padding: "16px",
-                      background: "#f9fafb",
-                      borderRadius: "12px",
+                      padding: "18px",
+                      background: theme.light,
+                      borderRadius: "16px",
                       textAlign: "left"
                     }}
                   >
-                    <h3 style={{ marginTop: 0 }}>Question</h3>
-                    <p style={{ fontWeight: "bold" }}>{joinedQuestion}</p>
+                    <h3 style={{ marginTop: 0, color: theme.text }}>Question</h3>
+                    <p style={{ fontWeight: "bold", fontSize: "18px", color: theme.text }}>
+                      {joinedQuestion}
+                    </p>
 
-                    <h4>Choose one answer</h4>
+                    <h4 style={{ color: theme.text }}>Choose one answer</h4>
 
                     {joinedOptions.map((option, index) => (
                       <button
@@ -654,30 +675,30 @@ function App() {
                     style={{
                       marginTop: "20px",
                       padding: "20px",
-                      background: "#eef8ff",
-                      borderRadius: "12px",
+                      background: theme.successBg,
+                      borderRadius: "16px",
                       textAlign: "center",
-                      border: "1px solid #cfe8ff"
+                      border: `1px solid ${theme.successBorder}`
                     }}
                   >
-                    <h3 style={{ marginTop: 0 }}>Thank you</h3>
-                    <p>Your vote has been submitted.</p>
+                    <h3 style={{ marginTop: 0, color: theme.successText }}>Thank you</h3>
+                    <p style={{ color: theme.successText }}>Your vote has been submitted.</p>
                   </div>
                 )}
 
                 <div style={{ marginTop: "20px", textAlign: "left" }}>
-                  <h3>Live Results</h3>
+                  <h3 style={{ color: theme.text }}>Live Results</h3>
 
                   {participantResults.map((item, index) => (
-                    <div key={index} style={{ marginBottom: "14px" }}>
-                      <div style={{ marginBottom: "6px" }}>
+                    <div key={index} style={{ marginBottom: "16px" }}>
+                      <div style={{ marginBottom: "8px", color: theme.text }}>
                         {item.name} — {item.percent}% ({item.count} votes)
                       </div>
                       <div
                         style={{
                           width: "100%",
                           height: "22px",
-                          background: "#e9eef5",
+                          background: "#e2e8f0",
                           borderRadius: "999px",
                           overflow: "hidden"
                         }}
@@ -686,8 +707,7 @@ function App() {
                           style={{
                             width: `${item.percent}%`,
                             height: "100%",
-                            background:
-                              "linear-gradient(90deg, #4facfe, #00c6ff)",
+                            background: `linear-gradient(90deg, ${theme.primary}, ${theme.secondary})`,
                             borderRadius: "999px",
                             transition: "width 0.3s ease"
                           }}
@@ -702,7 +722,7 @@ function App() {
         )}
 
         {message && (
-          <p style={{ marginTop: "18px", color: "#444", fontSize: "14px" }}>
+          <p style={{ marginTop: "18px", color: theme.muted, fontSize: "14px" }}>
             {message}
           </p>
         )}
