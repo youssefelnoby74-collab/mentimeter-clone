@@ -17,10 +17,8 @@ function getVoterId() {
 }
 
 function App() {
-  const appVersion = "VERSION 13 APR HOST TEST";
   const [page, setPage] = useState("home");
 
-  const [questionType, setQuestionType] = useState("multiple");
   const [question, setQuestion] = useState("");
   const [option1, setOption1] = useState("");
   const [option2, setOption2] = useState("");
@@ -34,8 +32,6 @@ function App() {
   const [results, setResults] = useState([]);
   const [message, setMessage] = useState("");
   const [hasVoted, setHasVoted] = useState(false);
-  const [isLoadingSession, setIsLoadingSession] = useState(false);
-  const [isCreatingSession, setIsCreatingSession] = useState(false);
   const [showOnlyResults, setShowOnlyResults] = useState(false);
 
   const [isHostPage, setIsHostPage] = useState(false);
@@ -43,680 +39,197 @@ function App() {
   const [hostQuestion, setHostQuestion] = useState("");
   const [hostOptions, setHostOptions] = useState([]);
   const [hostResults, setHostResults] = useState([]);
-  const [hostLoading, setHostLoading] = useState(true);
-  const [hostError, setHostError] = useState("");
 
   const voterId = getVoterId();
   const frontendUrl = window.location.origin;
+
   const qrLink = sessionId ? `${frontendUrl}?code=${sessionId}` : "";
   const hostLink = sessionId ? `${frontendUrl}/host?code=${sessionId}` : "";
 
   useEffect(() => {
     const path = window.location.pathname;
     const params = new URLSearchParams(window.location.search);
-    const codeFromUrl = params.get("code");
+    const code = params.get("code");
 
     if (path === "/host") {
       setIsHostPage(true);
-      setHostCode(codeFromUrl || "");
-      return;
-    }
-
-    if (codeFromUrl) {
+      setHostCode(code || "");
+    } else if (code) {
       setPage("join");
-      setJoinCode(codeFromUrl);
+      setJoinCode(code);
     }
   }, []);
 
   const createSession = async () => {
-    if (!question.trim()) {
-      setMessage("Please enter a question");
-      return;
-    }
-
-    if (questionType === "multiple" && (!option1.trim() || !option2.trim())) {
-      setMessage("Please enter both options");
+    if (!question || !option1 || !option2) {
+      setMessage("Fill all fields");
       return;
     }
 
     try {
-      setIsCreatingSession(true);
-      setMessage("Creating session...");
-
-      const finalOptions =
-        questionType === "truefalse" ? ["True", "False"] : [option1, option2];
+      setMessage("Creating...");
 
       const res = await fetch(`${BACKEND_URL}/create-session`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           question,
-          options: finalOptions,
-          type: questionType
+          options: [option1, option2]
         })
       });
 
       const data = await res.json();
 
-      if (!res.ok) {
-        setMessage(data.error || "Failed to create session");
-        setIsCreatingSession(false);
-        return;
-      }
-
       setSessionId(data.sessionId);
-      setMessage("Session created successfully");
-      setIsCreatingSession(false);
-    } catch (error) {
-      console.error(error);
-      setMessage("Server is waking up, please try again in a few seconds");
-      setIsCreatingSession(false);
+      setMessage("Session created");
+    } catch {
+      setMessage("Server waking up, try again");
     }
   };
 
   const joinSession = useCallback(() => {
-    if (!joinCode.trim()) {
-      setMessage("Please enter a session code");
-      return;
-    }
-
-    setMessage("");
-    setJoined(false);
-    setJoinedQuestion("");
-    setJoinedOptions([]);
-    setSelectedOption("");
-    setResults([]);
-    setHasVoted(false);
     setShowOnlyResults(false);
-    setIsLoadingSession(true);
+    setHasVoted(false);
 
     socket.emit("join_session", {
-      sessionId: joinCode.trim(),
+      sessionId: joinCode,
       voterId
     });
   }, [joinCode, voterId]);
 
   const submitVote = () => {
-    if (!selectedOption) {
-      setMessage("Please select an answer first");
-      return;
-    }
-
     socket.emit("submit_answer", {
-      sessionId: joinCode.trim(),
+      sessionId: joinCode,
       answer: selectedOption,
       voterId
     });
   };
-
-  const loadHostSession = useCallback(async () => {
-    if (!hostCode.trim()) {
-      setHostError("No session code found");
-      setHostLoading(false);
-      return;
-    }
-
-    try {
-      setHostLoading(true);
-      setHostError("");
-
-      const res = await fetch(`${BACKEND_URL}/session/${hostCode}`);
-      const data = await res.json();
-
-      if (!res.ok) {
-        setHostError(data.error || "Session not found");
-        setHostLoading(false);
-        return;
-      }
-
-      setHostQuestion(data.question);
-      setHostOptions(data.options || []);
-      setHostResults(data.answers || []);
-      setHostLoading(false);
-
-      socket.emit("join_session", {
-        sessionId: hostCode,
-        voterId: `host_${hostCode}`
-      });
-    } catch (error) {
-      console.error(error);
-      setHostError("Failed to load host session");
-      setHostLoading(false);
-    }
-  }, [hostCode]);
 
   useEffect(() => {
     socket.on("session_data", (data) => {
       if (isHostPage) {
         setHostQuestion(data.question);
         setHostOptions(data.options);
-        setHostResults(data.answers || []);
-        setHostLoading(false);
+        setHostResults(data.answers);
       } else {
         setJoined(true);
-        setIsLoadingSession(false);
         setJoinedQuestion(data.question);
         setJoinedOptions(data.options);
-        setResults(data.answers || []);
-        setHasVoted(data.alreadyVoted || false);
-
-        if (data.alreadyVoted) {
-          setShowOnlyResults(true);
-          setMessage("You have already voted in this session");
-        }
+        setResults(data.answers);
       }
     });
 
     socket.on("update_results", (data) => {
-      if (isHostPage) {
-        setHostResults(data);
-      } else {
-        setResults(data);
-      }
+      if (isHostPage) setHostResults(data);
+      else setResults(data);
     });
 
     socket.on("vote_success", () => {
       setHasVoted(true);
-      setMessage("Your vote has been submitted");
-
       setTimeout(() => {
         setShowOnlyResults(true);
       }, 800);
-    });
-
-    socket.on("vote_error", (msg) => {
-      setMessage(msg);
-    });
-
-    socket.on("join_error", (msg) => {
-      if (isHostPage) {
-        setHostError(msg);
-        setHostLoading(false);
-      } else {
-        setMessage(msg);
-        setJoined(false);
-        setIsLoadingSession(false);
-      }
     });
 
     return () => {
       socket.off("session_data");
       socket.off("update_results");
       socket.off("vote_success");
-      socket.off("vote_error");
-      socket.off("join_error");
     };
   }, [isHostPage]);
 
-  useEffect(() => {
-    if (isHostPage) {
-      loadHostSession();
-    }
-  }, [isHostPage, loadHostSession]);
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const codeFromUrl = params.get("code");
-
-    if (!isHostPage && page === "join" && codeFromUrl && joinCode === codeFromUrl && !joined) {
-      joinSession();
-    }
-  }, [page, joinCode, joined, joinSession, isHostPage]);
-
-  const countResults = (optionsList, answersList) => {
+  const countResults = (opts, answers) => {
     const counts = {};
-
-    answersList.forEach((answer) => {
-      counts[answer] = (counts[answer] || 0) + 1;
+    answers.forEach((a) => {
+      counts[a] = (counts[a] || 0) + 1;
     });
 
-    const total = answersList.length || 1;
-
-    return optionsList.map((option) => ({
-      name: option,
-      percent: Math.round(((counts[option] || 0) / total) * 100),
-      count: counts[option] || 0
+    return opts.map((o) => ({
+      name: o,
+      percent: Math.round(((counts[o] || 0) / (answers.length || 1)) * 100)
     }));
   };
 
   const participantResults = countResults(joinedOptions, results);
   const hostResultsData = countResults(hostOptions, hostResults);
 
-  const btn = {
-    width: "100%",
-    padding: "12px",
-    margin: "6px 0",
-    border: "none",
-    borderRadius: "10px",
-    background: "#4facfe",
-    color: "white",
-    fontSize: "16px",
-    cursor: "pointer"
-  };
-
-  const secondaryBtn = {
-    width: "100%",
-    padding: "12px",
-    margin: "6px 0",
-    border: "1px solid #d0d7de",
-    borderRadius: "10px",
-    background: "#ffffff",
-    color: "#222",
-    fontSize: "16px",
-    cursor: "pointer"
-  };
-
-  const selectedBtn = {
-    ...secondaryBtn,
-    background: "#dff1ff",
-    border: "2px solid #4facfe",
-    fontWeight: "bold"
-  };
-
-  const input = {
-    width: "100%",
-    padding: "10px",
-    borderRadius: "8px",
-    border: "1px solid #ccc",
-    fontSize: "14px",
-    boxSizing: "border-box"
-  };
-
-  const card = {
-    background: "white",
-    padding: "30px",
-    borderRadius: "18px",
-    width: "420px",
-    textAlign: "center",
-    boxShadow: "0 10px 30px rgba(0,0,0,0.15)"
-  };
-
   if (isHostPage) {
     return (
-      <div
-        style={{
-          minHeight: "100vh",
-          background: "linear-gradient(135deg, #141e30, #243b55)",
-          color: "white",
-          padding: "40px"
-        }}
-      >
-        {hostLoading && (
-          <div style={{ textAlign: "center", marginTop: "120px", fontSize: "24px" }}>
-            Loading host screen...
+      <div style={{ padding: 40 }}>
+        <h1>Live Results</h1>
+        <h2>{hostQuestion}</h2>
+
+        {hostResultsData.map((r, i) => (
+          <div key={i}>
+            {r.name} - {r.percent}%
           </div>
-        )}
-
-        {hostError && (
-          <div style={{ textAlign: "center", marginTop: "120px", fontSize: "24px" }}>
-            {hostError}
-          </div>
-        )}
-
-        {!hostLoading && !hostError && (
-          <div style={{ maxWidth: "1000px", margin: "0 auto" }}>
-            <div style={{ textAlign: "center", marginBottom: "40px" }}>
-              <h1 style={{ fontSize: "52px", marginBottom: "10px" }}>Live Results</h1>
-              <p style={{ fontSize: "20px", opacity: 0.9 }}>Session Code: {hostCode}</p>
-            </div>
-
-            <div
-              style={{
-                background: "rgba(255,255,255,0.08)",
-                borderRadius: "20px",
-                padding: "30px",
-                marginBottom: "30px"
-              }}
-            >
-              <h2 style={{ fontSize: "38px", marginTop: 0 }}>{hostQuestion}</h2>
-            </div>
-
-            <div
-              style={{
-                background: "rgba(255,255,255,0.08)",
-                borderRadius: "20px",
-                padding: "30px"
-              }}
-            >
-              {hostResultsData.map((item, index) => (
-                <div key={index} style={{ marginBottom: "24px" }}>
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      marginBottom: "10px",
-                      fontSize: "24px",
-                      fontWeight: "bold"
-                    }}
-                  >
-                    <span>{item.name}</span>
-                    <span>
-                      {item.percent}% ({item.count} votes)
-                    </span>
-                  </div>
-
-                  <div
-                    style={{
-                      width: "100%",
-                      height: "36px",
-                      background: "rgba(255,255,255,0.15)",
-                      borderRadius: "999px",
-                      overflow: "hidden"
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: `${item.percent}%`,
-                        height: "100%",
-                        background: "linear-gradient(90deg, #00f2fe, #4facfe)",
-                        borderRadius: "999px",
-                        transition: "width 0.4s ease"
-                      }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        ))}
       </div>
     );
   }
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "linear-gradient(135deg, #4facfe, #00f2fe)",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        padding: "20px"
-      }}
-    ><div style={card}>
-  <div
-    style={{
-      marginBottom: "12px",
-      padding: "8px",
-      background: "#fff7cc",
-      border: "1px solid #f0d96c",
-      borderRadius: "8px",
-      fontSize: "12px",
-      fontWeight: "bold",
-      textAlign: "center"
-    }}
-  >
-    VERSION 13 APR HOST TEST
-  </div>
-        {page === "home" && (
-          <>
-            <h1 style={{ marginBottom: "10px" }}>Mentimeter Clone</h1>
-            <p style={{ color: "#666", marginBottom: "24px" }}>
-              Interactive live polling for education
-            </p>
+    <div style={{ padding: 30 }}>
+      {page === "home" && (
+        <>
+          <button onClick={() => setPage("create")}>Create</button>
+          <button onClick={() => setPage("join")}>Join</button>
+        </>
+      )}
 
-            <button style={btn} onClick={() => setPage("create")}>
-              Create Poll
-            </button>
+      {page === "create" && (
+        <>
+          <input placeholder="Question" onChange={(e) => setQuestion(e.target.value)} />
+          <input placeholder="Option 1" onChange={(e) => setOption1(e.target.value)} />
+          <input placeholder="Option 2" onChange={(e) => setOption2(e.target.value)} />
 
-            <button style={btn} onClick={() => setPage("join")}>
-              Join Poll
-            </button>
-          </>
-        )}
+          <button onClick={createSession}>Create</button>
 
-        {page === "create" && (
-          <>
-            <h2>Create Poll</h2>
+          {sessionId && (
+            <>
+              <p>{sessionId}</p>
+              <QRCode value={qrLink} />
+              <a href={hostLink} target="_blank">Host Screen</a>
+            </>
+          )}
+        </>
+      )}
 
-            <button style={secondaryBtn} onClick={() => setPage("home")}>
-              ← Back
-            </button>
+      {page === "join" && (
+        <>
+          <input onChange={(e) => setJoinCode(e.target.value)} />
+          <button onClick={joinSession}>Join</button>
 
-            <br />
+          {joined && (
+            <>
+              {!showOnlyResults && (
+                <>
+                  <h3>{joinedQuestion}</h3>
 
-            <select
-              value={questionType}
-              onChange={(e) => setQuestionType(e.target.value)}
-              style={input}
-            >
-              <option value="multiple">Multiple Choice</option>
-              <option value="truefalse">True / False</option>
-            </select>
-
-            <br />
-            <br />
-
-            <input
-              style={input}
-              placeholder="Enter your question"
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-            />
-
-            <br />
-            <br />
-
-            {questionType === "multiple" && (
-              <>
-                <input
-                  style={input}
-                  placeholder="Option 1"
-                  value={option1}
-                  onChange={(e) => setOption1(e.target.value)}
-                />
-
-                <br />
-                <br />
-
-                <input
-                  style={input}
-                  placeholder="Option 2"
-                  value={option2}
-                  onChange={(e) => setOption2(e.target.value)}
-                />
-
-                <br />
-                <br />
-              </>
-            )}
-
-            <button
-              style={btn}
-              onClick={createSession}
-              disabled={isCreatingSession}
-            >
-              {isCreatingSession ? "Creating..." : "Create Session"}
-            </button>
-
-            {sessionId && (
-              <div
-                style={{
-                  marginTop: "20px",
-                  padding: "16px",
-                  background: "#f5fbff",
-                  borderRadius: "12px",
-                  border: "1px solid #dbefff"
-                }}
-              >
-                <h3 style={{ margin: 0 }}>Session Code: {sessionId}</h3>
-                <p style={{ marginTop: "8px", color: "#666" }}>
-                  Scan this QR to open and join from phone
-                </p>
-
-                <div
-                  style={{
-                    marginTop: "15px",
-                    display: "flex",
-                    justifyContent: "center",
-                    background: "white",
-                    padding: "10px",
-                    borderRadius: "12px"
-                  }}
-                >
-                  <QRCode value={qrLink} />
-                </div>
-
-                <p
-                  style={{
-                    marginTop: "12px",
-                    fontSize: "12px",
-                    color: "#666",
-                    wordBreak: "break-all"
-                  }}
-                >
-                  Link: {qrLink}
-                </p>
-
-                <a
-                  href={hostLink}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{
-                    display: "block",
-                    marginTop: "14px",
-                    color: "#2563eb",
-                    fontWeight: "bold",
-                    textDecoration: "none"
-                  }}
-                >
-                  Open Host Screen
-                </a>
-              </div>
-            )}
-          </>
-        )}
-
-        {page === "join" && (
-          <>
-            <h2>Join Poll</h2>
-
-            <button style={secondaryBtn} onClick={() => setPage("home")}>
-              ← Back
-            </button>
-
-            <br />
-
-            <input
-              style={input}
-              placeholder="Enter session code"
-              value={joinCode}
-              onChange={(e) => setJoinCode(e.target.value)}
-            />
-
-            <br />
-            <br />
-
-            <button style={btn} onClick={joinSession}>
-              Join Session
-            </button>
-
-            {isLoadingSession && (
-              <p style={{ marginTop: "16px", color: "#666" }}>
-                Loading session...
-              </p>
-            )}
-
-            {joined && (
-              <>
-                {!showOnlyResults && (
-                  <div
-                    style={{
-                      marginTop: "20px",
-                      padding: "16px",
-                      background: "#f9fafb",
-                      borderRadius: "12px",
-                      textAlign: "left"
-                    }}
-                  >
-                    <h3 style={{ marginTop: 0 }}>Question</h3>
-                    <p style={{ fontWeight: "bold" }}>{joinedQuestion}</p>
-
-                    <h4>Choose one answer</h4>
-
-                    {joinedOptions.map((option, index) => (
-                      <button
-                        key={index}
-                        style={
-                          selectedOption === option ? selectedBtn : secondaryBtn
-                        }
-                        onClick={() => setSelectedOption(option)}
-                        disabled={hasVoted}
-                      >
-                        {option}
-                      </button>
-                    ))}
-
-                    <button
-                      style={btn}
-                      onClick={submitVote}
-                      disabled={hasVoted}
-                    >
-                      {hasVoted ? "Vote Submitted" : "Submit Vote"}
+                  {joinedOptions.map((o, i) => (
+                    <button key={i} onClick={() => setSelectedOption(o)}>
+                      {o}
                     </button>
-                  </div>
-                )}
-
-                {showOnlyResults && (
-                  <div
-                    style={{
-                      marginTop: "20px",
-                      padding: "20px",
-                      background: "#eef8ff",
-                      borderRadius: "12px",
-                      textAlign: "center",
-                      border: "1px solid #cfe8ff"
-                    }}
-                  >
-                    <h3 style={{ marginTop: 0 }}>Thank you</h3>
-                    <p>Your vote has been submitted.</p>
-                  </div>
-                )}
-
-                <div style={{ marginTop: "20px", textAlign: "left" }}>
-                  <h3>Live Results</h3>
-
-                  {participantResults.map((item, index) => (
-                    <div key={index} style={{ marginBottom: "14px" }}>
-                      <div style={{ marginBottom: "6px" }}>
-                        {item.name} — {item.percent}% ({item.count} votes)
-                      </div>
-                      <div
-                        style={{
-                          width: "100%",
-                          height: "22px",
-                          background: "#e9eef5",
-                          borderRadius: "999px",
-                          overflow: "hidden"
-                        }}
-                      >
-                        <div
-                          style={{
-                            width: `${item.percent}%`,
-                            height: "100%",
-                            background:
-                              "linear-gradient(90deg, #4facfe, #00c6ff)",
-                            borderRadius: "999px",
-                            transition: "width 0.3s ease"
-                          }}
-                        />
-                      </div>
-                    </div>
                   ))}
-                </div>
-              </>
-            )}
-          </>
-        )}
 
-        {message && (
-          <p style={{ marginTop: "18px", color: "#444", fontSize: "14px" }}>
-            {message}
-          </p>
-        )}
-      </div>
+                  <button onClick={submitVote}>Submit</button>
+                </>
+              )}
+
+              {showOnlyResults && <p>Thanks! Showing results...</p>}
+
+              <h3>Results</h3>
+              {participantResults.map((r, i) => (
+                <div key={i}>
+                  {r.name} - {r.percent}%
+                </div>
+              ))}
+            </>
+          )}
+        </>
+      )}
+
+      <p>{message}</p>
     </div>
   );
 }
