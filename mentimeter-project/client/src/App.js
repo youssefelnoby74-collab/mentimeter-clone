@@ -402,12 +402,15 @@ function App() {
   };
 
   const questionBox = {
-    padding: "18px",
-    background: theme.light,
-    borderRadius: "16px",
-    textAlign: "left",
-    border: `1px solid ${theme.border}`
-  };
+  padding: "18px",
+  background: theme.light,
+  borderRadius: "16px",
+  textAlign: "left",
+  border: `1px solid ${theme.border}`,
+  display: "flex",
+  flexDirection: "column",
+  justifyContent: "space-between"
+};
 
   const questionsGrid = {
     display: "grid",
