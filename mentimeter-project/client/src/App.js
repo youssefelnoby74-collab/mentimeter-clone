@@ -247,7 +247,7 @@ function App() {
         setHostLoading(false);
         return;
       }
-      
+
       setHostResults(data.results || []);
       setHostLoading(false);
 
@@ -265,7 +265,7 @@ function App() {
   useEffect(() => {
     socket.on("session_data", (data) => {
       if (isHostPage) {
-        setHostQuestions(data.questions || []);
+        
         setHostResults(data.results || []);
         setHostLoading(false);
       } else {
