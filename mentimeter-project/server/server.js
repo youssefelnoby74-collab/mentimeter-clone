@@ -19,8 +19,38 @@ function generateSessionId() {
   return Math.random().toString(36).substring(2, 7);
 }
 
+function normalizeTextAnswer(answer) {
+  return answer.trim().toLowerCase();
+}
+
 function buildResults(questions) {
   return questions.map((question) => {
+    if (question.type === "wordcloud") {
+      const counts = {};
+
+      question.answers.forEach((answer) => {
+        const normalized = normalizeTextAnswer(answer);
+
+        if (!counts[normalized]) {
+          counts[normalized] = {
+            text: answer.trim(),
+            count: 0
+          };
+        }
+
+        counts[normalized].count += 1;
+      });
+
+      return {
+        id: question.id,
+        question: question.question,
+        type: question.type,
+        options: [],
+        answers: question.answers,
+        wordCounts: Object.values(counts)
+      };
+    }
+
     const counts = {};
 
     question.answers.forEach((answer) => {
@@ -30,6 +60,7 @@ function buildResults(questions) {
     return {
       id: question.id,
       question: question.question,
+      type: question.type,
       options: question.options,
       answers: question.answers,
       counts
@@ -87,9 +118,16 @@ io.on("connection", (socket) => {
         return;
       }
 
-      if (!question.options.includes(submittedAnswer.answer)) {
-        socket.emit("vote_error", "Invalid answer");
+      if (!submittedAnswer.answer || !String(submittedAnswer.answer).trim()) {
+        socket.emit("vote_error", "Please answer all questions");
         return;
+      }
+
+      if (question.type !== "wordcloud") {
+        if (!question.options.includes(submittedAnswer.answer)) {
+          socket.emit("vote_error", "Invalid answer");
+          return;
+        }
       }
     }
 
@@ -98,41 +136,12 @@ io.on("connection", (socket) => {
         (q) => q.id === submittedAnswer.questionId
       );
 
-      question.answers.push(submittedAnswer.answer);
+      question.answers.push(String(submittedAnswer.answer).trim());
     });
 
     session.voters.push(voterId);
 
-    socket.emit("vote_success", "Your vote has been submitted");
-
-    io.to(sessionId).emit("update_results", buildResults(session.questions));
-  });
-
-  // Old single-question support
-  socket.on("submit_answer", ({ sessionId, answer, voterId }) => {
-    if (!sessions[sessionId]) {
-      socket.emit("vote_error", "Session not found");
-      return;
-    }
-
-    const session = sessions[sessionId];
-
-    if (session.voters.includes(voterId)) {
-      socket.emit("vote_error", "You have already voted in this session");
-      return;
-    }
-
-    const firstQuestion = session.questions[0];
-
-    if (!firstQuestion.options.includes(answer)) {
-      socket.emit("vote_error", "Invalid answer");
-      return;
-    }
-
-    firstQuestion.answers.push(answer);
-    session.voters.push(voterId);
-
-    socket.emit("vote_success", "Your vote has been submitted");
+    socket.emit("vote_success", "Your answers have been submitted");
     io.to(sessionId).emit("update_results", buildResults(session.questions));
   });
 });
@@ -143,41 +152,33 @@ app.get("/", (req, res) => {
 
 app.post("/create-session", (req, res) => {
   try {
-    const { question, options, type, questions } = req.body;
+    const { questions } = req.body;
 
-    let finalQuestions = [];
-
-    if (questions && Array.isArray(questions)) {
-      finalQuestions = questions.map((q, index) => ({
-        id: index + 1,
-        question: q.question,
-        options: q.options,
-        type: q.type || "multiple",
-        answers: []
-      }));
-    } else {
-      if (!question || !options || !Array.isArray(options) || options.length < 2) {
-        return res.status(400).json({ error: "Invalid question data" });
-      }
-
-      finalQuestions = [
-        {
-          id: 1,
-          question,
-          options,
-          type: type || "multiple",
-          answers: []
-        }
-      ];
-    }
-
-    if (finalQuestions.length === 0) {
+    if (!questions || !Array.isArray(questions) || questions.length === 0) {
       return res.status(400).json({ error: "No questions provided" });
     }
 
+    const finalQuestions = questions.map((q, index) => {
+      const type = q.type || "multiple";
+
+      return {
+        id: index + 1,
+        question: q.question,
+        type,
+        options: type === "wordcloud" ? [] : q.options,
+        answers: []
+      };
+    });
+
     for (const q of finalQuestions) {
-      if (!q.question || !Array.isArray(q.options) || q.options.length < 2) {
-        return res.status(400).json({ error: "Invalid question data" });
+      if (!q.question || !q.question.trim()) {
+        return res.status(400).json({ error: "Invalid question text" });
+      }
+
+      if (q.type !== "wordcloud") {
+        if (!Array.isArray(q.options) || q.options.length < 2) {
+          return res.status(400).json({ error: "Invalid question options" });
+        }
       }
     }
 
