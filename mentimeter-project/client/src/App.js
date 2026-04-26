@@ -35,15 +35,14 @@ function App() {
 
   const [questionType, setQuestionType] = useState("multiple");
   const [question, setQuestion] = useState("");
-  const [option1, setOption1] = useState("");
-  const [option2, setOption2] = useState("");
+  const [options, setOptions] = useState(["", "", "", ""]);
+  const [questionsList, setQuestionsList] = useState([]);
   const [sessionId, setSessionId] = useState("");
 
   const [joinCode, setJoinCode] = useState("");
   const [joined, setJoined] = useState(false);
-  const [joinedQuestion, setJoinedQuestion] = useState("");
-  const [joinedOptions, setJoinedOptions] = useState([]);
-  const [selectedOption, setSelectedOption] = useState("");
+  const [joinedQuestions, setJoinedQuestions] = useState([]);
+  const [selectedAnswers, setSelectedAnswers] = useState({});
   const [results, setResults] = useState([]);
   const [message, setMessage] = useState("");
   const [hasVoted, setHasVoted] = useState(false);
@@ -53,8 +52,6 @@ function App() {
 
   const [isHostPage, setIsHostPage] = useState(false);
   const [hostCode, setHostCode] = useState("");
-  const [hostQuestion, setHostQuestion] = useState("");
-  const [hostOptions, setHostOptions] = useState([]);
   const [hostResults, setHostResults] = useState([]);
   const [hostLoading, setHostLoading] = useState(true);
   const [hostError, setHostError] = useState("");
@@ -82,14 +79,68 @@ function App() {
     }
   }, []);
 
-  const createSession = async () => {
+  const resetQuestionForm = () => {
+    setQuestion("");
+    setQuestionType("multiple");
+    setOptions(["", "", "", ""]);
+  };
+
+  const getFinalOptions = () => {
+    if (questionType === "truefalse") {
+      return ["True", "False"];
+    }
+
+    return options.map((opt) => opt.trim()).filter((opt) => opt !== "");
+  };
+
+  const addQuestion = () => {
+    const finalOptions = getFinalOptions();
+
     if (!question.trim()) {
       setMessage("Please enter a question");
       return;
     }
 
-    if (questionType === "multiple" && (!option1.trim() || !option2.trim())) {
-      setMessage("Please enter both options");
+    if (finalOptions.length < 2) {
+      setMessage("Please enter at least two options");
+      return;
+    }
+
+    const newQuestion = {
+      question: question.trim(),
+      options: finalOptions,
+      type: questionType
+    };
+
+    setQuestionsList([...questionsList, newQuestion]);
+    setMessage("Question added");
+    resetQuestionForm();
+  };
+
+  const removeQuestion = (indexToRemove) => {
+    setQuestionsList(questionsList.filter((_, index) => index !== indexToRemove));
+  };
+
+  const createSession = async () => {
+    let finalQuestions = [...questionsList];
+
+    if (question.trim()) {
+      const finalOptions = getFinalOptions();
+
+      if (finalOptions.length < 2) {
+        setMessage("Please enter at least two options for the current question");
+        return;
+      }
+
+      finalQuestions.push({
+        question: question.trim(),
+        options: finalOptions,
+        type: questionType
+      });
+    }
+
+    if (finalQuestions.length === 0) {
+      setMessage("Please add at least one question");
       return;
     }
 
@@ -97,18 +148,13 @@ function App() {
       setIsCreatingSession(true);
       setMessage("Creating session...");
 
-      const finalOptions =
-        questionType === "truefalse" ? ["True", "False"] : [option1, option2];
-
       const res = await fetch(`${BACKEND_URL}/create-session`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          question,
-          options: finalOptions,
-          type: questionType
+          questions: finalQuestions
         })
       });
 
@@ -121,7 +167,7 @@ function App() {
       }
 
       setSessionId(data.sessionId);
-      setResults([]);
+      setQuestionsList(finalQuestions);
       setMessage("Session created successfully");
       setIsCreatingSession(false);
     } catch (error) {
@@ -139,9 +185,8 @@ function App() {
 
     setMessage("");
     setJoined(false);
-    setJoinedQuestion("");
-    setJoinedOptions([]);
-    setSelectedOption("");
+    setJoinedQuestions([]);
+    setSelectedAnswers({});
     setResults([]);
     setHasVoted(false);
     setShowOnlyResults(false);
@@ -153,20 +198,32 @@ function App() {
     });
   }, [joinCode, voterId]);
 
-  const submitVote = () => {
+  const submitAllAnswers = () => {
     if (hasVoted) {
       setMessage("You have already voted in this session");
       return;
     }
 
-    if (!selectedOption) {
-      setMessage("Please select an answer first");
+    if (joinedQuestions.length === 0) {
+      setMessage("No questions found");
       return;
     }
 
-    socket.emit("submit_answer", {
+    const answers = joinedQuestions.map((q) => ({
+      questionId: q.id,
+      answer: selectedAnswers[q.id]
+    }));
+
+    const missingAnswer = answers.some((item) => !item.answer);
+
+    if (missingAnswer) {
+      setMessage("Please answer all questions first");
+      return;
+    }
+
+    socket.emit("submit_answers", {
       sessionId: joinCode.trim(),
-      answer: selectedOption,
+      answers,
       voterId
     });
   };
@@ -190,10 +247,8 @@ function App() {
         setHostLoading(false);
         return;
       }
-
-      setHostQuestion(data.question);
-      setHostOptions(data.options || []);
-      setHostResults(data.answers || []);
+      
+      setHostResults(data.results || []);
       setHostLoading(false);
 
       socket.emit("join_session", {
@@ -210,16 +265,14 @@ function App() {
   useEffect(() => {
     socket.on("session_data", (data) => {
       if (isHostPage) {
-        setHostQuestion(data.question);
-        setHostOptions(data.options || []);
-        setHostResults(data.answers || []);
+        setHostQuestions(data.questions || []);
+        setHostResults(data.results || []);
         setHostLoading(false);
       } else {
         setJoined(true);
         setIsLoadingSession(false);
-        setJoinedQuestion(data.question);
-        setJoinedOptions(data.options || []);
-        setResults(data.answers || []);
+        setJoinedQuestions(data.questions || []);
+        setResults(data.results || []);
         setHasVoted(Boolean(data.alreadyVoted));
 
         if (data.alreadyVoted) {
@@ -233,9 +286,9 @@ function App() {
 
     socket.on("update_results", (data) => {
       if (isHostPage) {
-        setHostResults(data);
+        setHostResults(data || []);
       } else {
-        setResults(data);
+        setResults(data || []);
       }
     });
 
@@ -287,30 +340,21 @@ function App() {
     }
   }, [page, joinCode, joined, joinSession, isHostPage]);
 
-  const countResults = (optionsList, answersList) => {
-    const counts = {};
+  const calculatePercent = (questionResult, option) => {
+    const total = questionResult.answers.length || 1;
+    const count = questionResult.counts[option] || 0;
 
-    answersList.forEach((answer) => {
-      counts[answer] = (counts[answer] || 0) + 1;
-    });
-
-    const total = answersList.length || 1;
-
-    return optionsList.map((option) => ({
-      name: option,
-      percent: Math.round(((counts[option] || 0) / total) * 100),
-      count: counts[option] || 0
-    }));
+    return {
+      count,
+      percent: Math.round((count / total) * 100)
+    };
   };
-
-  const participantResults = countResults(joinedOptions, results);
-  const hostResultsData = countResults(hostOptions, hostResults);
 
   const card = {
     background: theme.card,
     padding: "32px",
     borderRadius: "24px",
-    width: "440px",
+    width: "520px",
     maxWidth: "100%",
     textAlign: "center",
     boxShadow: "0 20px 50px rgba(0,0,0,0.18)"
@@ -358,6 +402,15 @@ function App() {
     outline: "none"
   };
 
+  const questionBox = {
+    marginTop: "18px",
+    padding: "18px",
+    background: theme.light,
+    borderRadius: "16px",
+    textAlign: "left",
+    border: `1px solid ${theme.border}`
+  };
+
   if (isHostPage) {
     return (
       <div
@@ -381,69 +434,70 @@ function App() {
         )}
 
         {!hostLoading && !hostError && (
-          <div style={{ maxWidth: "1000px", margin: "0 auto" }}>
+          <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
             <div style={{ textAlign: "center", marginBottom: "40px" }}>
               <h1 style={{ fontSize: "52px", marginBottom: "10px" }}>Live Results</h1>
               <p style={{ fontSize: "20px", opacity: 0.9 }}>Session Code: {hostCode}</p>
             </div>
 
-            <div
-              style={{
-                background: "rgba(255,255,255,0.08)",
-                borderRadius: "24px",
-                padding: "30px",
-                marginBottom: "30px"
-              }}
-            >
-              <h2 style={{ fontSize: "38px", marginTop: 0 }}>{hostQuestion}</h2>
-            </div>
+            {hostResults.map((questionResult, qIndex) => (
+              <div
+                key={questionResult.id}
+                style={{
+                  background: "rgba(255,255,255,0.08)",
+                  borderRadius: "24px",
+                  padding: "30px",
+                  marginBottom: "26px"
+                }}
+              >
+                <h2 style={{ fontSize: "30px", marginTop: 0 }}>
+                  Question {qIndex + 1}: {questionResult.question}
+                </h2>
 
-            <div
-              style={{
-                background: "rgba(255,255,255,0.08)",
-                borderRadius: "24px",
-                padding: "30px"
-              }}
-            >
-              {hostResultsData.map((item, index) => (
-                <div key={index} style={{ marginBottom: "24px" }}>
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      marginBottom: "10px",
-                      fontSize: "24px",
-                      fontWeight: "bold"
-                    }}
-                  >
-                    <span>{item.name}</span>
-                    <span>
-                      {item.percent}% ({item.count} votes)
-                    </span>
-                  </div>
+                {questionResult.options.map((option) => {
+                  const data = calculatePercent(questionResult, option);
 
-                  <div
-                    style={{
-                      width: "100%",
-                      height: "36px",
-                      background: "rgba(255,255,255,0.15)",
-                      borderRadius: "999px",
-                      overflow: "hidden"
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: `${item.percent}%`,
-                        height: "100%",
-                        background: `linear-gradient(90deg, ${theme.primary}, ${theme.secondary})`,
-                        borderRadius: "999px",
-                        transition: "width 0.4s ease"
-                      }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
+                  return (
+                    <div key={option} style={{ marginBottom: "22px" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          marginBottom: "10px",
+                          fontSize: "22px",
+                          fontWeight: "bold"
+                        }}
+                      >
+                        <span>{option}</span>
+                        <span>
+                          {data.percent}% ({data.count} votes)
+                        </span>
+                      </div>
+
+                      <div
+                        style={{
+                          width: "100%",
+                          height: "34px",
+                          background: "rgba(255,255,255,0.15)",
+                          borderRadius: "999px",
+                          overflow: "hidden"
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: `${data.percent}%`,
+                            height: "100%",
+                            background: `linear-gradient(90deg, ${theme.primary}, ${theme.secondary})`,
+                            borderRadius: "999px",
+                            transition: "width 0.4s ease"
+                          }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -467,6 +521,7 @@ function App() {
             <h1 style={{ marginBottom: "10px", color: theme.text, fontSize: "42px" }}>
               Join the conversation
             </h1>
+
             <p style={{ color: theme.muted, marginBottom: "28px", fontSize: "16px" }}>
               Create live polls and see the results instantly
             </p>
@@ -515,26 +570,62 @@ function App() {
 
             {questionType === "multiple" && (
               <>
-                <input
-                  style={input}
-                  placeholder="Option 1"
-                  value={option1}
-                  onChange={(e) => setOption1(e.target.value)}
-                />
-
-                <br />
-                <br />
-
-                <input
-                  style={input}
-                  placeholder="Option 2"
-                  value={option2}
-                  onChange={(e) => setOption2(e.target.value)}
-                />
-
-                <br />
-                <br />
+                {options.map((option, index) => (
+                  <div key={index}>
+                    <input
+                      style={input}
+                      placeholder={`Option ${index + 1}`}
+                      value={option}
+                      onChange={(e) => {
+                        const updatedOptions = [...options];
+                        updatedOptions[index] = e.target.value;
+                        setOptions(updatedOptions);
+                      }}
+                    />
+                    <br />
+                    <br />
+                  </div>
+                ))}
               </>
+            )}
+
+            {questionType === "truefalse" && (
+              <p style={{ color: theme.muted }}>
+                Options will be True and False automatically.
+              </p>
+            )}
+
+            <button style={secondaryBtn} onClick={addQuestion}>
+              Add Question
+            </button>
+
+            {questionsList.length > 0 && (
+              <div style={{ marginTop: "18px", textAlign: "left" }}>
+                <h3 style={{ color: theme.text }}>Questions added</h3>
+
+                {questionsList.map((item, index) => (
+                  <div key={index} style={questionBox}>
+                    <strong>
+                      {index + 1}. {item.question}
+                    </strong>
+                    <ul>
+                      {item.options.map((option) => (
+                        <li key={option}>{option}</li>
+                      ))}
+                    </ul>
+                    <button
+                      style={{
+                        ...secondaryBtn,
+                        color: "#dc2626",
+                        fontWeight: "bold"
+                      }}
+                      onClick={() => removeQuestion(index)}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
             )}
 
             <button
@@ -636,38 +727,40 @@ function App() {
             {joined && (
               <>
                 {!showOnlyResults && (
-                  <div
-                    style={{
-                      marginTop: "20px",
-                      padding: "18px",
-                      background: theme.light,
-                      borderRadius: "16px",
-                      textAlign: "left"
-                    }}
-                  >
-                    <h3 style={{ marginTop: 0, color: theme.text }}>Question</h3>
-                    <p style={{ fontWeight: "bold", fontSize: "18px", color: theme.text }}>
-                      {joinedQuestion}
-                    </p>
+                  <>
+                    {joinedQuestions.map((item, qIndex) => (
+                      <div key={item.id} style={questionBox}>
+                        <h3 style={{ marginTop: 0, color: theme.text }}>
+                          Question {qIndex + 1}
+                        </h3>
 
-                    <h4 style={{ color: theme.text }}>Choose one answer</h4>
+                        <p style={{ fontWeight: "bold", fontSize: "18px", color: theme.text }}>
+                          {item.question}
+                        </p>
 
-                    {joinedOptions.map((option, index) => (
-                      <button
-                        key={index}
-                        style={
-                          selectedOption === option ? selectedBtn : secondaryBtn
-                        }
-                        onClick={() => setSelectedOption(option)}
-                      >
-                        {option}
-                      </button>
+                        {item.options.map((option) => (
+                          <button
+                            key={option}
+                            style={
+                              selectedAnswers[item.id] === option ? selectedBtn : secondaryBtn
+                            }
+                            onClick={() =>
+                              setSelectedAnswers({
+                                ...selectedAnswers,
+                                [item.id]: option
+                              })
+                            }
+                          >
+                            {option}
+                          </button>
+                        ))}
+                      </div>
                     ))}
 
-                    <button style={btn} onClick={submitVote}>
-                      Submit Vote
+                    <button style={btn} onClick={submitAllAnswers}>
+                      Submit All Answers
                     </button>
-                  </div>
+                  </>
                 )}
 
                 {showOnlyResults && (
@@ -682,37 +775,51 @@ function App() {
                     }}
                   >
                     <h3 style={{ marginTop: 0, color: theme.successText }}>Thank you</h3>
-                    <p style={{ color: theme.successText }}>Your vote has been submitted.</p>
+                    <p style={{ color: theme.successText }}>
+                      Your answers have been submitted.
+                    </p>
                   </div>
                 )}
 
                 <div style={{ marginTop: "20px", textAlign: "left" }}>
                   <h3 style={{ color: theme.text }}>Live Results</h3>
 
-                  {participantResults.map((item, index) => (
-                    <div key={index} style={{ marginBottom: "16px" }}>
-                      <div style={{ marginBottom: "8px", color: theme.text }}>
-                        {item.name} — {item.percent}% ({item.count} votes)
-                      </div>
-                      <div
-                        style={{
-                          width: "100%",
-                          height: "22px",
-                          background: "#e2e8f0",
-                          borderRadius: "999px",
-                          overflow: "hidden"
-                        }}
-                      >
-                        <div
-                          style={{
-                            width: `${item.percent}%`,
-                            height: "100%",
-                            background: `linear-gradient(90deg, ${theme.primary}, ${theme.secondary})`,
-                            borderRadius: "999px",
-                            transition: "width 0.3s ease"
-                          }}
-                        />
-                      </div>
+                  {results.map((questionResult, qIndex) => (
+                    <div key={questionResult.id} style={questionBox}>
+                      <h4 style={{ color: theme.text }}>
+                        Question {qIndex + 1}: {questionResult.question}
+                      </h4>
+
+                      {questionResult.options.map((option) => {
+                        const data = calculatePercent(questionResult, option);
+
+                        return (
+                          <div key={option} style={{ marginBottom: "16px" }}>
+                            <div style={{ marginBottom: "8px", color: theme.text }}>
+                              {option} — {data.percent}% ({data.count} votes)
+                            </div>
+                            <div
+                              style={{
+                                width: "100%",
+                                height: "22px",
+                                background: "#e2e8f0",
+                                borderRadius: "999px",
+                                overflow: "hidden"
+                              }}
+                            >
+                              <div
+                                style={{
+                                  width: `${data.percent}%`,
+                                  height: "100%",
+                                  background: `linear-gradient(90deg, ${theme.primary}, ${theme.secondary})`,
+                                  borderRadius: "999px",
+                                  transition: "width 0.3s ease"
+                                }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   ))}
                 </div>
