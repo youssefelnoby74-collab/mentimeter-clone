@@ -1,6 +1,4 @@
-// ⚠️ الكود طويل — انسخه كله كما هو
-
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { io } from "socket.io-client";
 import QRCode from "react-qr-code";
 
@@ -43,7 +41,6 @@ function App() {
   const [results, setResults] = useState([]);
 
   const [message, setMessage] = useState("");
-  const [hasVoted, setHasVoted] = useState(false);
 
   const voterId = getVoterId();
   const frontendUrl = window.location.origin;
@@ -134,7 +131,6 @@ function App() {
     });
 
     socket.on("vote_success", (msg) => {
-      setHasVoted(true);
       setMessage(msg);
     });
 
