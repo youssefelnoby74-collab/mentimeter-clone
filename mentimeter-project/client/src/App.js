@@ -265,7 +265,6 @@ function App() {
   useEffect(() => {
     socket.on("session_data", (data) => {
       if (isHostPage) {
-        
         setHostResults(data.results || []);
         setHostLoading(false);
       } else {
@@ -354,7 +353,7 @@ function App() {
     background: theme.card,
     padding: "32px",
     borderRadius: "24px",
-    width: "520px",
+    width: "980px",
     maxWidth: "100%",
     textAlign: "center",
     boxShadow: "0 20px 50px rgba(0,0,0,0.18)"
@@ -403,12 +402,18 @@ function App() {
   };
 
   const questionBox = {
-    marginTop: "18px",
     padding: "18px",
     background: theme.light,
     borderRadius: "16px",
     textAlign: "left",
     border: `1px solid ${theme.border}`
+  };
+
+  const questionsGrid = {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+    gap: "18px",
+    alignItems: "stretch"
   };
 
   if (isHostPage) {
@@ -440,64 +445,65 @@ function App() {
               <p style={{ fontSize: "20px", opacity: 0.9 }}>Session Code: {hostCode}</p>
             </div>
 
-            {hostResults.map((questionResult, qIndex) => (
-              <div
-                key={questionResult.id}
-                style={{
-                  background: "rgba(255,255,255,0.08)",
-                  borderRadius: "24px",
-                  padding: "30px",
-                  marginBottom: "26px"
-                }}
-              >
-                <h2 style={{ fontSize: "30px", marginTop: 0 }}>
-                  Question {qIndex + 1}: {questionResult.question}
-                </h2>
+            <div style={questionsGrid}>
+              {hostResults.map((questionResult, qIndex) => (
+                <div
+                  key={questionResult.id}
+                  style={{
+                    background: "rgba(255,255,255,0.08)",
+                    borderRadius: "24px",
+                    padding: "24px"
+                  }}
+                >
+                  <h2 style={{ fontSize: "24px", marginTop: 0 }}>
+                    Question {qIndex + 1}: {questionResult.question}
+                  </h2>
 
-                {questionResult.options.map((option) => {
-                  const data = calculatePercent(questionResult, option);
+                  {questionResult.options.map((option) => {
+                    const data = calculatePercent(questionResult, option);
 
-                  return (
-                    <div key={option} style={{ marginBottom: "22px" }}>
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          marginBottom: "10px",
-                          fontSize: "22px",
-                          fontWeight: "bold"
-                        }}
-                      >
-                        <span>{option}</span>
-                        <span>
-                          {data.percent}% ({data.count} votes)
-                        </span>
-                      </div>
-
-                      <div
-                        style={{
-                          width: "100%",
-                          height: "34px",
-                          background: "rgba(255,255,255,0.15)",
-                          borderRadius: "999px",
-                          overflow: "hidden"
-                        }}
-                      >
+                    return (
+                      <div key={option} style={{ marginBottom: "18px" }}>
                         <div
                           style={{
-                            width: `${data.percent}%`,
-                            height: "100%",
-                            background: `linear-gradient(90deg, ${theme.primary}, ${theme.secondary})`,
-                            borderRadius: "999px",
-                            transition: "width 0.4s ease"
+                            display: "flex",
+                            justifyContent: "space-between",
+                            marginBottom: "8px",
+                            fontSize: "18px",
+                            fontWeight: "bold"
                           }}
-                        />
+                        >
+                          <span>{option}</span>
+                          <span>
+                            {data.percent}% ({data.count})
+                          </span>
+                        </div>
+
+                        <div
+                          style={{
+                            width: "100%",
+                            height: "28px",
+                            background: "rgba(255,255,255,0.15)",
+                            borderRadius: "999px",
+                            overflow: "hidden"
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: `${data.percent}%`,
+                              height: "100%",
+                              background: `linear-gradient(90deg, ${theme.primary}, ${theme.secondary})`,
+                              borderRadius: "999px",
+                              transition: "width 0.4s ease"
+                            }}
+                          />
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -570,9 +576,10 @@ function App() {
 
             {questionType === "multiple" && (
               <>
-                {options.map((option, index) => (
-                  <div key={index}>
+                <div style={questionsGrid}>
+                  {options.map((option, index) => (
                     <input
+                      key={index}
                       style={input}
                       placeholder={`Option ${index + 1}`}
                       value={option}
@@ -582,10 +589,9 @@ function App() {
                         setOptions(updatedOptions);
                       }}
                     />
-                    <br />
-                    <br />
-                  </div>
-                ))}
+                  ))}
+                </div>
+                <br />
               </>
             )}
 
@@ -603,28 +609,30 @@ function App() {
               <div style={{ marginTop: "18px", textAlign: "left" }}>
                 <h3 style={{ color: theme.text }}>Questions added</h3>
 
-                {questionsList.map((item, index) => (
-                  <div key={index} style={questionBox}>
-                    <strong>
-                      {index + 1}. {item.question}
-                    </strong>
-                    <ul>
-                      {item.options.map((option) => (
-                        <li key={option}>{option}</li>
-                      ))}
-                    </ul>
-                    <button
-                      style={{
-                        ...secondaryBtn,
-                        color: "#dc2626",
-                        fontWeight: "bold"
-                      }}
-                      onClick={() => removeQuestion(index)}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ))}
+                <div style={questionsGrid}>
+                  {questionsList.map((item, index) => (
+                    <div key={index} style={questionBox}>
+                      <strong>
+                        {index + 1}. {item.question}
+                      </strong>
+                      <ul>
+                        {item.options.map((option) => (
+                          <li key={option}>{option}</li>
+                        ))}
+                      </ul>
+                      <button
+                        style={{
+                          ...secondaryBtn,
+                          color: "#dc2626",
+                          fontWeight: "bold"
+                        }}
+                        onClick={() => removeQuestion(index)}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -728,34 +736,38 @@ function App() {
               <>
                 {!showOnlyResults && (
                   <>
-                    {joinedQuestions.map((item, qIndex) => (
-                      <div key={item.id} style={questionBox}>
-                        <h3 style={{ marginTop: 0, color: theme.text }}>
-                          Question {qIndex + 1}
-                        </h3>
+                    <div style={{ marginTop: "20px", ...questionsGrid }}>
+                      {joinedQuestions.map((item, qIndex) => (
+                        <div key={item.id} style={questionBox}>
+                          <h3 style={{ marginTop: 0, color: theme.text }}>
+                            Question {qIndex + 1}
+                          </h3>
 
-                        <p style={{ fontWeight: "bold", fontSize: "18px", color: theme.text }}>
-                          {item.question}
-                        </p>
+                          <p style={{ fontWeight: "bold", fontSize: "18px", color: theme.text }}>
+                            {item.question}
+                          </p>
 
-                        {item.options.map((option) => (
-                          <button
-                            key={option}
-                            style={
-                              selectedAnswers[item.id] === option ? selectedBtn : secondaryBtn
-                            }
-                            onClick={() =>
-                              setSelectedAnswers({
-                                ...selectedAnswers,
-                                [item.id]: option
-                              })
-                            }
-                          >
-                            {option}
-                          </button>
-                        ))}
-                      </div>
-                    ))}
+                          {item.options.map((option) => (
+                            <button
+                              key={option}
+                              style={
+                                selectedAnswers[item.id] === option
+                                  ? selectedBtn
+                                  : secondaryBtn
+                              }
+                              onClick={() =>
+                                setSelectedAnswers({
+                                  ...selectedAnswers,
+                                  [item.id]: option
+                                })
+                              }
+                            >
+                              {option}
+                            </button>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
 
                     <button style={btn} onClick={submitAllAnswers}>
                       Submit All Answers
@@ -784,44 +796,46 @@ function App() {
                 <div style={{ marginTop: "20px", textAlign: "left" }}>
                   <h3 style={{ color: theme.text }}>Live Results</h3>
 
-                  {results.map((questionResult, qIndex) => (
-                    <div key={questionResult.id} style={questionBox}>
-                      <h4 style={{ color: theme.text }}>
-                        Question {qIndex + 1}: {questionResult.question}
-                      </h4>
+                  <div style={questionsGrid}>
+                    {results.map((questionResult, qIndex) => (
+                      <div key={questionResult.id} style={questionBox}>
+                        <h4 style={{ color: theme.text }}>
+                          Question {qIndex + 1}: {questionResult.question}
+                        </h4>
 
-                      {questionResult.options.map((option) => {
-                        const data = calculatePercent(questionResult, option);
+                        {questionResult.options.map((option) => {
+                          const data = calculatePercent(questionResult, option);
 
-                        return (
-                          <div key={option} style={{ marginBottom: "16px" }}>
-                            <div style={{ marginBottom: "8px", color: theme.text }}>
-                              {option} — {data.percent}% ({data.count} votes)
-                            </div>
-                            <div
-                              style={{
-                                width: "100%",
-                                height: "22px",
-                                background: "#e2e8f0",
-                                borderRadius: "999px",
-                                overflow: "hidden"
-                              }}
-                            >
+                          return (
+                            <div key={option} style={{ marginBottom: "16px" }}>
+                              <div style={{ marginBottom: "8px", color: theme.text }}>
+                                {option} — {data.percent}% ({data.count} votes)
+                              </div>
                               <div
                                 style={{
-                                  width: `${data.percent}%`,
-                                  height: "100%",
-                                  background: `linear-gradient(90deg, ${theme.primary}, ${theme.secondary})`,
+                                  width: "100%",
+                                  height: "22px",
+                                  background: "#e2e8f0",
                                   borderRadius: "999px",
-                                  transition: "width 0.3s ease"
+                                  overflow: "hidden"
                                 }}
-                              />
+                              >
+                                <div
+                                  style={{
+                                    width: `${data.percent}%`,
+                                    height: "100%",
+                                    background: `linear-gradient(90deg, ${theme.primary}, ${theme.secondary})`,
+                                    borderRadius: "999px",
+                                    transition: "width 0.3s ease"
+                                  }}
+                                />
+                              </div>
                             </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ))}
+                          );
+                        })}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </>
             )}
