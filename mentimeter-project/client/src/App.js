@@ -50,7 +50,7 @@ function App() {
   const [isLoadingSession, setIsLoadingSession] = useState(false);
   const [isCreatingSession, setIsCreatingSession] = useState(false);
   const [showOnlyResults, setShowOnlyResults] = useState(false);
-
+const [currentResultIndex, setCurrentResultIndex] = useState(0);
   const [isHostPage, setIsHostPage] = useState(false);
   const [hostCode, setHostCode] = useState("");
   const [hostResults, setHostResults] = useState([]);
@@ -195,6 +195,7 @@ function App() {
     setResults([]);
     setHasVoted(false);
     setShowOnlyResults(false);
+    setCurrentResultIndex(0);
     setIsLoadingSession(true);
 
     socket.emit("join_session", {
@@ -871,15 +872,58 @@ function App() {
                   </div>
                 )}
 
-                <div style={{ marginTop: "20px", textAlign: "left" }}>
-                  <h3 style={{ color: theme.text }}>Live Results</h3>
+               <div style={{ marginTop: "20px", textAlign: "left" }}>
+  <h3 style={{ color: theme.text }}>Live Results</h3>
 
-                  <div style={questionsGrid}>
-                    {results.map((questionResult, qIndex) =>
-                      renderResultBox(questionResult, qIndex, false)
-                    )}
-                  </div>
-                </div>
+  {results.length > 0 && (
+    <>
+      {renderResultBox(
+        results[currentResultIndex],
+        currentResultIndex,
+        false
+      )}
+
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          marginTop: "20px",
+          gap: "10px"
+        }}
+      >
+        <button
+          style={secondaryBtn}
+          disabled={currentResultIndex === 0}
+          onClick={() =>
+            setCurrentResultIndex(currentResultIndex - 1)
+          }
+        >
+          ⬅ Previous
+        </button>
+
+        <button
+          style={btn}
+          disabled={currentResultIndex === results.length - 1}
+          onClick={() =>
+            setCurrentResultIndex(currentResultIndex + 1)
+          }
+        >
+          Next ➡
+        </button>
+      </div>
+
+      <p
+        style={{
+          textAlign: "center",
+          marginTop: "10px",
+          color: theme.muted
+        }}
+      >
+        Question {currentResultIndex + 1} of {results.length}
+      </p>
+    </>
+  )}
+</div>
               </>
             )}
           </>
