@@ -754,29 +754,41 @@ function App() {
           </>
         )}
 
-        {page === "join" && (
-          <>
-            <h2 style={{ color: theme.text, marginBottom: "20px" }}>Join Poll</h2>
+       {page === "join" && (
+  <>
+    {!joined && (
+      <>
+        <h2 style={{ color: theme.text, marginBottom: "20px" }}>
+          Join Poll
+        </h2>
 
-            <button style={secondaryBtn} onClick={() => setPage("home")}>
-              ← Back
-            </button>
+        <button
+          style={secondaryBtn}
+          onClick={() => setPage("home")}
+        >
+          ← Back
+        </button>
 
-            <br />
+        <br />
 
-            <input
-              style={input}
-              placeholder="Enter session code"
-              value={joinCode}
-              onChange={(e) => setJoinCode(e.target.value)}
-            />
+        <input
+          style={input}
+          placeholder="Enter session code"
+          value={joinCode}
+          onChange={(e) => setJoinCode(e.target.value)}
+        />
 
-            <br />
-            <br />
+        <br />
+        <br />
 
-            <button style={btn} onClick={joinSession}>
-              Join Session
-            </button>
+        <button
+          style={btn}
+          onClick={joinSession}
+        >
+          Join Session
+        </button>
+      </>
+    )}
 
             {isLoadingSession && (
               <p style={{ marginTop: "16px", color: theme.muted }}>
