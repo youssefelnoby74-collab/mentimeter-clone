@@ -425,55 +425,81 @@ const [currentResultIndex, setCurrentResultIndex] = useState(0);
   };
 
   const renderResultBox = (questionResult, qIndex, darkMode = false) => {
-    if (questionResult.type === "wordcloud") {
-      return (
-        <div key={questionResult.id} style={darkMode ? {
-          background: "rgba(255,255,255,0.08)",
-          borderRadius: "24px",
-          padding: "24px"
-        } : questionBox}>
-          <h4 style={{ color: darkMode ? "white" : theme.text }}>
-            Question {qIndex + 1}: {questionResult.question}
-          </h4>
+   if (questionResult.type === "wordcloud") {
 
-          {questionResult.wordCounts && questionResult.wordCounts.length > 0 ? (
-           <div style={{ display: "flex", flexWrap: "wrap", gap: "12px" }}>
-  {(() => {
-    const maxCount = Math.max(
-      ...questionResult.wordCounts.map((w) => w.count),
-      1
-    );
+  const maxCount = Math.max(
+    ...(questionResult.wordCounts || []).map(w => w.count),
+    1
+  );
 
-    return questionResult.wordCounts.map((word) => {
-      const size =
-        16 + ((word.count / maxCount) * 20);
+  return (
+    <div
+      key={questionResult.id}
+      style={
+        darkMode
+          ? {
+              background: "rgba(255,255,255,0.08)",
+              borderRadius: "24px",
+              padding: "24px"
+            }
+          : questionBox
+      }
+    >
+      <h4 style={{ color: darkMode ? "white" : theme.text }}>
+        Question {qIndex + 1}: {questionResult.question}
+      </h4>
 
-      return (
-        <span
-          key={word.text}
+      {questionResult.wordCounts &&
+      questionResult.wordCounts.length > 0 ? (
+        <div
           style={{
-            padding: "8px 14px",
-            borderRadius: "999px",
-            background: darkMode
-              ? "rgba(255,255,255,0.18)"
-              : "#eef2ff",
-            color: darkMode
-              ? "white"
-              : theme.primary,
-            fontWeight: "bold",
-            fontSize: `${size}px`,
-            transition: "all 0.3s ease"
+            display: "flex",
+            flexWrap: "wrap",
+            gap: "12px"
           }}
         >
-          {word.text}
-          {word.count > 1
-            ? ` (${word.count})`
-            : ""}
-        </span>
-      );
-    });
-  })()}
-</div>
+          {questionResult.wordCounts.map((word) => {
+            const size =
+              16 + (word.count / maxCount) * 20;
+
+            return (
+              <span
+                key={word.text}
+                style={{
+                  padding: "8px 14px",
+                  borderRadius: "999px",
+                  background: darkMode
+                    ? "rgba(255,255,255,0.18)"
+                    : "#eef2ff",
+                  color: darkMode
+                    ? "white"
+                    : theme.primary,
+                  fontWeight: "bold",
+                  fontSize: `${size}px`
+                }}
+              >
+                {word.text}
+                {word.count > 1
+                  ? ` (${word.count})`
+                  : ""}
+              </span>
+            );
+          })}
+        </div>
+      ) : (
+        <p
+          style={{
+            color: darkMode
+              ? "rgba(255,255,255,0.8)"
+              : theme.muted
+          }}
+        >
+          No answers yet
+        </p>
+      )}
+    </div>
+  );
+}
 
     return (
       <div key={questionResult.id} style={darkMode ? {
