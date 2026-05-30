@@ -437,32 +437,43 @@ const [currentResultIndex, setCurrentResultIndex] = useState(0);
           </h4>
 
           {questionResult.wordCounts && questionResult.wordCounts.length > 0 ? (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
-              {questionResult.wordCounts.map((word) => (
-                <span
-                  key={word.text}
-                  style={{
-                    padding: "8px 12px",
-                    borderRadius: "999px",
-                    background: darkMode ? "rgba(255,255,255,0.18)" : "#eef2ff",
-                    color: darkMode ? "white" : theme.primary,
-                    fontWeight: "bold",
-                    fontSize: word.count > 1 ? "20px" : "15px"
-                  }}
-                >
-                  {word.text}
-                  {word.count > 1 ? ` — ${word.count}` : ""}
-                </span>
-              ))}
-            </div>
-          ) : (
-            <p style={{ color: darkMode ? "rgba(255,255,255,0.8)" : theme.muted }}>
-              No answers yet
-            </p>
-          )}
-        </div>
+           <div style={{ display: "flex", flexWrap: "wrap", gap: "12px" }}>
+  {(() => {
+    const maxCount = Math.max(
+      ...questionResult.wordCounts.map((w) => w.count),
+      1
+    );
+
+    return questionResult.wordCounts.map((word) => {
+      const size =
+        16 + ((word.count / maxCount) * 20);
+
+      return (
+        <span
+          key={word.text}
+          style={{
+            padding: "8px 14px",
+            borderRadius: "999px",
+            background: darkMode
+              ? "rgba(255,255,255,0.18)"
+              : "#eef2ff",
+            color: darkMode
+              ? "white"
+              : theme.primary,
+            fontWeight: "bold",
+            fontSize: `${size}px`,
+            transition: "all 0.3s ease"
+          }}
+        >
+          {word.text}
+          {word.count > 1
+            ? ` (${word.count})`
+            : ""}
+        </span>
       );
-    }
+    });
+  })()}
+</div>
 
     return (
       <div key={questionResult.id} style={darkMode ? {
