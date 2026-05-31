@@ -49,7 +49,7 @@ function App() {
   const [hasVoted, setHasVoted] = useState(false);
   const [isLoadingSession, setIsLoadingSession] = useState(false);
   const [isCreatingSession, setIsCreatingSession] = useState(false);
-  const [showOnlyResults, setShowOnlyResults] = useState(false);
+const [showOnlyResults, setShowOnlyResults] = useState(true);
 const [currentResultIndex, setCurrentResultIndex] = useState(0);
   const [isHostPage, setIsHostPage] = useState(false);
   const [hostCode, setHostCode] = useState("");
@@ -908,11 +908,11 @@ const [currentResultIndex, setCurrentResultIndex] = useState(0);
                     </p>
                   </div>
                 )}
+{showOnlyResults && (
+  <div style={{ marginTop: "20px", textAlign: "left" }}>
+    <h3 style={{ color: theme.text }}>Live Results</h3>
 
-               <div style={{ marginTop: "20px", textAlign: "left" }}>
-  <h3 style={{ color: theme.text }}>Live Results</h3>
-
-  {results.length > 0 && (
+    {results.length > 0 && (
     <>
       {renderResultBox(
         results[currentResultIndex],
@@ -960,7 +960,8 @@ const [currentResultIndex, setCurrentResultIndex] = useState(0);
       </p>
     </>
   )}
-</div>
+  </div>
+)}
               </>
             )}
           </>
