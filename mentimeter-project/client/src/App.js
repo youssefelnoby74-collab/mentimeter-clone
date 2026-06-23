@@ -49,7 +49,7 @@ function App() {
   const [hasVoted, setHasVoted] = useState(false);
   const [isLoadingSession, setIsLoadingSession] = useState(false);
   const [isCreatingSession, setIsCreatingSession] = useState(false);
-const [showOnlyResults, setShowOnlyResults] = useState(true);
+const [showOnlyResults, setShowOnlyResults] = useState(false);
 const [currentResultIndex, setCurrentResultIndex] = useState(0);
   const [isHostPage, setIsHostPage] = useState(false);
   const [hostCode, setHostCode] = useState("");
@@ -961,7 +961,6 @@ const [currentResultIndex, setCurrentResultIndex] = useState(0);
     </>
   )}
   </div>
-)}
               </>
             )}
           </>
