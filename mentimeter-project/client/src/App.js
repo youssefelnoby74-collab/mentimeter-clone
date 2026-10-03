@@ -595,6 +595,7 @@ const [currentResultIndex, setCurrentResultIndex] = useState(0);
         alignItems: "center",
         padding: "20px"
       }}
+  
     >
       <div style={card}>
         {page === "home" && (
@@ -913,61 +914,68 @@ const [currentResultIndex, setCurrentResultIndex] = useState(0);
     <h3 style={{ color: theme.text }}>Live Results</h3>
 
     {results.length > 0 && (
-    <>
-      {renderResultBox(
-        results[currentResultIndex],
-        currentResultIndex,
-        false
-      )}
+      <>
+        {renderResultBox(
+          results[currentResultIndex],
+          currentResultIndex,
+          false
+        )}
 
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          marginTop: "20px",
-          gap: "10px"
-        }}
-      >
-        <button
-          style={secondaryBtn}
-          disabled={currentResultIndex === 0}
-          onClick={() =>
-            setCurrentResultIndex(currentResultIndex - 1)
-          }
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            marginTop: "20px",
+            gap: "10px"
+          }}
         >
-          ⬅ Previous
-        </button>
+          <button
+            style={secondaryBtn}
+            disabled={currentResultIndex === 0}
+            onClick={() =>
+              setCurrentResultIndex(currentResultIndex - 1)
+            }
+          >
+            ⬅ Previous
+          </button>
 
-        <button
-          style={btn}
-          disabled={currentResultIndex === results.length - 1}
-          onClick={() =>
-            setCurrentResultIndex(currentResultIndex + 1)
-          }
+          <button
+            style={btn}
+            disabled={currentResultIndex === results.length - 1}
+            onClick={() =>
+              setCurrentResultIndex(currentResultIndex + 1)
+            }
+          >
+            Next ➡
+          </button>
+        </div>
+
+        <p
+          style={{
+            textAlign: "center",
+            marginTop: "10px",
+            color: theme.muted
+          }}
         >
-          Next ➡
-        </button>
-      </div>
-
-      <p
-        style={{
-          textAlign: "center",
-          marginTop: "10px",
-          color: theme.muted
-        }}
-      >
-        Question {currentResultIndex + 1} of {results.length}
-      </p>
-    </>
-  )}
+          Question {currentResultIndex + 1} of {results.length}
+        </p>
+      </>
+    )}
   </div>
+)}
               </>
             )}
           </>
         )}
 
         {message && (
-          <p style={{ marginTop: "18px", color: theme.muted, fontSize: "14px" }}>
+          <p
+            style={{
+              marginTop: "18px",
+              color: theme.muted,
+              fontSize: "14px"
+            }}
+          >
             {message}
           </p>
         )}
